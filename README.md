@@ -58,6 +58,13 @@ that check). Deleting any column of a valid certificate keeps it valid, so the
 15×29 also witnesses β(Q₂₇) ≤ 15 and β(Q₂₈) ≤ 15, and the 14×26 gives
 β(Q₂₄), β(Q₂₅) ≤ 14 — matching (not beating) the published values there.
 
+## Search code
+
+The full search machinery (annealer, slice audit, extension pipelines, SAT-based
+lower-bound prover) is in [`search/`](search/) with a methods write-up in
+[`search/METHODS.md`](search/METHODS.md). The certificates stand on their own —
+verification never touches the search code.
+
 ## References
 
 - OEIS [A303735](https://oeis.org/A303735) — metric dimension of Q_n (exact values, n ≤ 13).
