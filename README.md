@@ -25,8 +25,8 @@ If x ≠ y have equal distance to every vᵢ, then z = x − y is a nonzero vect
 {−1,0,1}ⁿ with Wz = 0 — contradiction. ∎
 
 So verifying each claim reduces to one finite check: **the matrix has no nonzero
-ternary kernel vector**. The two matrices here pass that check exhaustively
-(3¹⁵ ≈ 14.3M half-assignments, meet-in-the-middle over all 3ⁿ candidates).
+ternary kernel vector**. All three matrices here pass that check exhaustively
+(meet-in-the-middle over all 3ⁿ candidates, ≈14.3M half-assignments at q=15).
 
 ## Verify it yourself
 
@@ -34,29 +34,36 @@ Two independent implementations, ~seconds each:
 
 ```sh
 # JavaScript (bun or node >= 18)
+bun verify.js matrices/beta_Q24_le_13.txt
 bun verify.js matrices/beta_Q26_le_14.txt
 bun verify.js matrices/beta_Q29_le_15.txt
 
 # C
 cc -O2 -o verify verify.c
+./verify matrices/beta_Q24_le_13.txt
 ./verify matrices/beta_Q26_le_14.txt
 ./verify matrices/beta_Q29_le_15.txt
 ```
 
 Expected output ends with `VALID certificate: beta(Q_n) <= q`.
-`./test.sh` runs both implementations on both matrices plus a negative control
-(a deliberately broken matrix that must be rejected).
+`./test.sh` runs both implementations on all three matrices plus a negative
+control (a deliberately broken matrix that must be rejected).
 
 ## How the matrices were found
 
 Simulated annealing over ±1 sign matrices, scoring each candidate by the exact
 size of its ternary kernel (meet-in-the-middle enumeration; millions of candidate
-matrices over ~10 CPU-days). The 15×29 fell to annealing directly; the 14×26
-turned up inside a random row/column slice of an already-solved 15×29. Both were
-re-verified with independently written counters (the two in this repo reproduce
-that check). Deleting any column of a valid certificate keeps it valid, so the
-15×29 also witnesses β(Q₂₇) ≤ 15 and β(Q₂₈) ≤ 15, and the 14×26 gives
-β(Q₂₄), β(Q₂₅) ≤ 14 — matching (not beating) the published values there.
+matrices over ~10 CPU-days). The 15×29 fell to annealing directly. The other two
+came from a much cheaper trick — good matrices contain smaller good ones:
+the 14×26 turned up inside a random row/column slice of an already-solved 15×29,
+and the 13×24 came from industrializing that observation — slicing many 13×23
+children and scanning all 2¹³ candidate extension columns for each; two
+independent slices extended by the same column. Every record was re-verified
+with independently written counters before being claimed (the two verifiers in
+this repo reproduce that check). Deleting any column of a valid certificate
+keeps it valid, so the 15×29 also witnesses β(Q₂₇), β(Q₂₈) ≤ 15, the 14×26
+gives β(Q₂₅) ≤ 14, and the 13×24 gives β(Q₂₃) ≤ 13 — matching (not beating)
+the published values there.
 
 ## Search code
 
