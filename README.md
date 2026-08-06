@@ -77,7 +77,9 @@ verification never touches the search code.
 - OEIS [A303735](https://oeis.org/A303735) — metric dimension of Q_n (exact values, n ≤ 13).
 - N. Mladenović, J. Kratica, V. Kovačević-Vujčić, M. Čangalović, *Variable neighborhood
   search for metric dimension and minimal doubly resolving set problems*, EJOR 220 (2012).
-- J. Nikolić, et al., dynamic-programming bounds for β(Q_n) (2017).
+- N. Nikolić, M. Čangalović, I. Grujičić, *Symmetry properties of resolving sets and
+  metric bases in hypercubes*, Optim. Lett. 11 (2017) — greedy bounds to n=22, then
+  dynamic-programming bounds for 23 ≤ n ≤ 90.
 - A. Hertz, *An IP-based swapping algorithm for the metric dimension and minimal doubly
   resolving set problems in hypercubes*, Optim. Lett. (2020).
 - C. Lu, Q. Ye, *A bridge between the minimal doubly resolving set problem in (folded)
