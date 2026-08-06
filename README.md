@@ -1,16 +1,17 @@
-# New upper bounds for the metric dimension of hypercubes Q₂₆ and Q₂₉
+# New upper bounds for the metric dimension of hypercubes Q₂₄, Q₂₆ and Q₂₉
 
-Two explicit certificates improving the best published upper bounds on the metric
+Three explicit certificates improving the best published upper bounds on the metric
 dimension β(Q_n) of the hypercube:
 
 | n  | best published | this repo | certificate |
 |----|----------------|-----------|-------------|
+| 24 | 14 (Hertz 2020; Lu–Ye 2022) | **β(Q₂₄) ≤ 13** | [`matrices/beta_Q24_le_13.txt`](matrices/beta_Q24_le_13.txt) |
 | 26 | 15 (Hertz 2020; Lu–Ye 2022) | **β(Q₂₆) ≤ 14** | [`matrices/beta_Q26_le_14.txt`](matrices/beta_Q26_le_14.txt) |
 | 29 | 16 (Nikolić et al. 2017; Lu–Ye 2022) | **β(Q₂₉) ≤ 15** | [`matrices/beta_Q29_le_15.txt`](matrices/beta_Q29_le_15.txt) |
 
-Equivalently, in riddle form: a score-only true/false test with 26 (resp. 29)
-questions can be guaranteed perfect in **15** (resp. **16**) attempts — one fewer
-than previously known. Interactive demo: **https://crack-the-test.netlify.app**
+Equivalently, in riddle form: a score-only true/false test with 24 / 26 / 29
+questions can be guaranteed perfect in **14 / 15 / 16** attempts — one fewer
+than previously known in each case. Interactive demo: **https://crack-the-test.netlify.app**
 
 ## Why a sign matrix is a certificate
 
