@@ -1,11 +1,12 @@
 #!/bin/sh
-# Run both verifiers on both certificates + a negative control.
+# Run both verifiers on every certificate + a negative control.
 set -e
 cd "$(dirname "$0")"
 cc -O2 -o verify verify.c
 JS="bun"; command -v bun >/dev/null || JS="node"
 
-for m in matrices/beta_Q26_le_14.txt matrices/beta_Q29_le_15.txt; do
+for m in matrices/beta_Q15_le_9.txt matrices/beta_Q24_le_13.txt \
+         matrices/beta_Q26_le_14.txt matrices/beta_Q29_le_15.txt; do
   echo "== $m"
   ./verify "$m" | tail -2
   "$JS" verify.js "$m" | tail -1

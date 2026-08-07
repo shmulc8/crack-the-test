@@ -15,7 +15,7 @@ such that no nonzero z ∈ {−1,0,1}ⁿ has Wz = 0. See the root README for why
 | result | status | how |
 |---|---|---|
 | **β(Q₁₄) = 9** | proved | no 8×14 and no 7×14 detecting matrix exists (exhaustive) |
-| **β(Q₁₅) = 9** | proved | no 8×15 (column deletion from 8×14); 9-element resolving set is known |
+| **β(Q₁₅) = 9** | proved | no 8×15 (column deletion from 8×14); 9×15 matrix in `matrices/` |
 | **M(14) = 8** | proved | Erdős–Rényi coin weighing, via the Lu–Ye bridge |
 | β(Q₂₄) ≤ 13, β(Q₂₆) ≤ 14, β(Q₂₉) ≤ 15 | certified | explicit matrices in `matrices/` |
 | β(Q₁₁) = β(Q₁₂) = β(Q₁₃) = 8 | reproduced | agrees with OEIS A303735 (Miller, MaxSAT, 2023) |
@@ -148,21 +148,35 @@ For the exact value, in order of how much weight we place on it:
 1. **External agreement.** The enumerator reproduces β(Q₁₁), β(Q₁₂), β(Q₁₃) = 8,
    computed independently by V. S. Miller in 2023 with a MaxSAT solver. Two
    unrelated methods, same answers. This matters more than any self-check.
-2. **Positive control on the machinery.** The identical code and flags — including
+2. **An independent reimplementation.** A clean-room CEGAR SAT solver, written by
+   a different model (Gemini, via the Antigravity CLI) from the problem statement
+   alone with no access to this code, agrees on **18 of 19** decidable instances —
+   every nonexistence result up to and including **7×14**, and every existence
+   result up to 8×13. It could *not* settle 8×14: it stalled after ~308,000
+   counterexamples and estimated 10–50 hours, independently rediscovering the
+   CEGAR wall described in §3. So the 7×14 half of the β(Q₁₄) lower bound has
+   external confirmation; the 8×14 half does not.
+3. **Positive control on the machinery.** The identical code and flags — including
    the work-splitting — *do* find matrices for 8×11, 8×12 and 8×13, in every
    part. A checker that cannot fail is not a checker.
-3. **Partition coherence.** All ten parts of the 8×14 run report identical node
+4. **Partition coherence.** All ten parts of the 8×14 run report identical node
    counts down to the split depth (`0,1,6,18,143,1082,11364`) and disjoint work
    below it.
-4. **A different logical route.** `enumerate/verify_extensions.py` never searches
+5. **A different logical route.** `enumerate/verify_extensions.py` never searches
    to depth 14. Deleting a column from an 8×14 matrix leaves an 8×13 one, so if
    every 8×13 matrix is extension-maximal, no 8×14 exists. Written in Python,
    sums rebuilt from scratch, sharing no code with the C search.
 
 **Known limitation.** The enumerator and the extension checker were written by
-the same author in the same sitting. Item 1 is the only genuinely external
-evidence. An independent reimplementation, or a SAT-based proof emitting a
-DRAT certificate, would be worth more than any further internal cross-check.
+the same author in the same sitting, so items 3–5 are internal checks. Items 1
+and 2 are external, and neither covers **8×14** itself — the one instance the
+new value actually depends on. A second exhaustive run of 8×14 by unrelated
+code, or a SAT proof emitting a DRAT certificate, would be worth more than any
+further internal cross-check.
+
+For β(Q₁₅) = 9 the upper bound is a plain certificate: `matrices/beta_Q15_le_9.txt`
+is verified by `verify.c` and `verify.js`, written independently of each other and
+of the search. The lower bound inherits whatever confidence 8×14 carries.
 
 ---
 

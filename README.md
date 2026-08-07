@@ -14,12 +14,14 @@ MaxSAT solver. This repo proves the fourth:
 | | result |
 |---|---|
 | **β(Q₁₄) = 9** | exhaustive: no 8×14 detecting matrix exists (and none for 7×14) |
-| β(Q₁₅) = 9 | corollary — see below |
+| **β(Q₁₅) = 9** | corollary below, with its own certificate |
 | M(14) = 8 | Erdős–Rényi coin-weighing constant, via the Lu–Ye bridge |
 
-β(Q₁₅) = 9 follows because deleting a column from an 8×15 detecting matrix would
-leave an 8×14 one, so no 8×15 exists either; the matching upper bound is the
-known 9-element resolving set for Q₁₅.
+β(Q₁₅) ≥ 9 follows because deleting a column from an 8×15 detecting matrix would
+leave an 8×14 one, so no 8×15 exists either. The matching upper bound is
+[`matrices/beta_Q15_le_9.txt`](matrices/beta_Q15_le_9.txt), a 9×15 detecting
+matrix found here and checkable in seconds — so both halves of β(Q₁₅) = 9 are
+self-contained rather than resting on a published resolving set.
 
 Code, method and reproduction instructions: [`enumerate/`](enumerate/). The
 search also reproduces β(Q₁₁) = β(Q₁₂) = β(Q₁₃) = 8 in about a second each,
@@ -56,10 +58,10 @@ which is exactly what [`enumerate/`](enumerate/) decides.
 
 ## Verify it yourself
 
-The three upper-bound certificates each reduce to one finite check — the matrix
-has no nonzero ternary kernel vector — done exhaustively by meet-in-the-middle
-over all 3ⁿ candidates (≈14.3M half-assignments at q=15). Two independent
-implementations, seconds each:
+Every upper-bound certificate in `matrices/` reduces to one finite check — the
+matrix has no nonzero ternary kernel vector — done exhaustively by
+meet-in-the-middle over all 3ⁿ candidates (≈14.3M half-assignments at q=15). Two
+independent implementations, seconds each:
 
 ```sh
 # JavaScript (bun or node >= 18)
