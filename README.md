@@ -1,7 +1,32 @@
-# New upper bounds for the metric dimension of hypercubes Q₂₄, Q₂₆ and Q₂₉
+# The metric dimension of hypercubes: β(Q₁₄) = 9, and new upper bounds for Q₂₄, Q₂₆, Q₂₉
 
-Three explicit certificates improving the best published upper bounds on the metric
-dimension β(Q_n) of the hypercube:
+Two kinds of result on the metric dimension β(Q_n) of the hypercube, both with
+machine-checkable certificates.
+
+## 1. An exact value: β(Q₁₄) = 9
+
+[OEIS A303735](https://oeis.org/A303735) gives β(Q_n) for n ≤ 13 —
+`1,2,3,4,4,5,6,6,7,7,8,8,8` — and is tagged `hard,more`. Mladenović et al. (2012)
+*conjectured* 8, 8, 8, 9, 9, 10, 10 for n = 11…17 from an approximation
+algorithm; Victor S. Miller confirmed the first three of those in 2023 with a
+MaxSAT solver. This repo proves the fourth:
+
+| | result |
+|---|---|
+| **β(Q₁₄) = 9** | exhaustive: no 8×14 detecting matrix exists (and none for 7×14) |
+| β(Q₁₅) = 9 | corollary — see below |
+| M(14) = 8 | Erdős–Rényi coin-weighing constant, via the Lu–Ye bridge |
+
+β(Q₁₅) = 9 follows because deleting a column from an 8×15 detecting matrix would
+leave an 8×14 one, so no 8×15 exists either; the matching upper bound is the
+known 9-element resolving set for Q₁₅.
+
+Code, method and reproduction instructions: [`enumerate/`](enumerate/). The
+search also reproduces β(Q₁₁) = β(Q₁₂) = β(Q₁₃) = 8 in about a second each,
+agreeing with Miller's independent MaxSAT computation — which is the strongest
+correctness evidence available, since the two methods share nothing.
+
+## 2. Three improved upper bounds
 
 | n  | best published | this repo | certificate |
 |----|----------------|-----------|-------------|
@@ -9,9 +34,9 @@ dimension β(Q_n) of the hypercube:
 | 26 | 15 (Hertz 2020; Lu–Ye 2022) | **β(Q₂₆) ≤ 14** | [`matrices/beta_Q26_le_14.txt`](matrices/beta_Q26_le_14.txt) |
 | 29 | 16 (Nikolić et al. 2017; Lu–Ye 2022) | **β(Q₂₉) ≤ 15** | [`matrices/beta_Q29_le_15.txt`](matrices/beta_Q29_le_15.txt) |
 
-Equivalently, in riddle form: a score-only true/false test with 24 / 26 / 29
-questions can be guaranteed perfect in **14 / 15 / 16** attempts — one fewer
-than previously known in each case. Interactive demo: **https://crack-the-test.netlify.app**
+In riddle form: a score-only true/false test with 24 / 26 / 29 questions can be
+guaranteed perfect in **14 / 15 / 16** attempts — one fewer than previously known
+in each case. Interactive demo: **https://crack-the-test.netlify.app**
 
 ## Why a sign matrix is a certificate
 
@@ -24,57 +49,69 @@ d(x, vᵢ) − d(y, vᵢ) = Σⱼ (xⱼ − yⱼ)(1 − 2vᵢⱼ) = rowᵢ · (x
 If x ≠ y have equal distance to every vᵢ, then z = x − y is a nonzero vector in
 {−1,0,1}ⁿ with Wz = 0 — contradiction. ∎
 
-So verifying each claim reduces to one finite check: **the matrix has no nonzero
-ternary kernel vector**. All three matrices here pass that check exhaustively
-(meet-in-the-middle over all 3ⁿ candidates, ≈14.3M half-assignments at q=15).
+Call such a W a **detecting matrix**. The lemma runs both ways: an upper bound is
+certified by exhibiting one, and a *lower* bound is certified by proving none
+exists at that size. Hence β(Q_n) = min { q : a q×n detecting matrix exists },
+which is exactly what [`enumerate/`](enumerate/) decides.
 
 ## Verify it yourself
 
-Two independent implementations, ~seconds each:
+The three upper-bound certificates each reduce to one finite check — the matrix
+has no nonzero ternary kernel vector — done exhaustively by meet-in-the-middle
+over all 3ⁿ candidates (≈14.3M half-assignments at q=15). Two independent
+implementations, seconds each:
 
 ```sh
 # JavaScript (bun or node >= 18)
 bun verify.js matrices/beta_Q24_le_13.txt
-bun verify.js matrices/beta_Q26_le_14.txt
-bun verify.js matrices/beta_Q29_le_15.txt
 
 # C
 cc -O2 -o verify verify.c
 ./verify matrices/beta_Q24_le_13.txt
-./verify matrices/beta_Q26_le_14.txt
-./verify matrices/beta_Q29_le_15.txt
 ```
 
 Expected output ends with `VALID certificate: beta(Q_n) <= q`.
 `./test.sh` runs both implementations on all three matrices plus a negative
 control (a deliberately broken matrix that must be rejected).
 
-## How the matrices were found
+For the exact value, `enumerate/ladder.sh` reproduces every published term of
+A303735 and then settles 8×14.
 
-Simulated annealing over ±1 sign matrices, scoring each candidate by the exact
-size of its ternary kernel (meet-in-the-middle enumeration; millions of candidate
-matrices over ~10 CPU-days). The 15×29 fell to annealing directly. The other two
-came from a much cheaper trick — good matrices contain smaller good ones:
-the 14×26 turned up inside a random row/column slice of an already-solved 15×29,
-and the 13×24 came from industrializing that observation — slicing many 13×23
-children and scanning all 2¹³ candidate extension columns for each; two
-independent slices extended by the same column. Every record was re-verified
-with independently written counters before being claimed (the two verifiers in
-this repo reproduce that check). Deleting any column of a valid certificate
-keeps it valid, so the 15×29 also witnesses β(Q₂₇), β(Q₂₈) ≤ 15, the 14×26
-gives β(Q₂₅) ≤ 14, and the 13×24 gives β(Q₂₃) ≤ 13 — matching (not beating)
-the published values there.
+## How the results were found
+
+**The exact value (β(Q₁₄))** came from exhaustive enumeration, not search.
+Normalising row 0 to all +1 makes every column one of 2^(q−1) types and turns
+"detecting" into "all 2ⁿ subset sums are distinct"; a depth-first walk over
+n-subsets with Read–Faradžev orderly generation then settles existence outright.
+Details in [`enumerate/README.md`](enumerate/README.md).
+
+**The upper bounds** came from simulated annealing over ±1 sign matrices, scored
+by exact ternary-kernel size (millions of candidates over ~10 CPU-days). The
+15×29 fell to annealing directly. The other two came from a cheaper trick — good
+matrices contain smaller good ones: the 14×26 turned up inside a random
+row/column slice of an already-solved 15×29, and the 13×24 came from
+industrializing that observation, slicing many 13×23 children and scanning all
+2¹³ candidate extension columns for each; two independent slices extended by the
+same column. Deleting any column of a valid certificate keeps it valid, so the
+15×29 also witnesses β(Q₂₇), β(Q₂₈) ≤ 15, the 14×26 gives β(Q₂₅) ≤ 14, and the
+13×24 gives β(Q₂₃) ≤ 13 — matching (not beating) the published values there.
 
 ## Search code
 
-The full search machinery (annealer, slice audit, extension pipelines, SAT-based
-lower-bound prover) is in [`search/`](search/) with a methods write-up in
-[`search/METHODS.md`](search/METHODS.md). The certificates stand on their own —
-verification never touches the search code.
+- [`enumerate/`](enumerate/) — the exhaustive enumerator behind β(Q₁₄) = 9.
+- [`search/`](search/) — the annealer and extension pipelines behind the upper
+  bounds, plus a methods write-up in [`search/METHODS.md`](search/METHODS.md)
+  that includes what did *not* work on the lower-bound side.
+
+The certificates stand on their own: verification never touches the search code.
 
 ## References
 
-- OEIS [A303735](https://oeis.org/A303735) — metric dimension of Q_n (exact values, n ≤ 13).
+- OEIS [A303735](https://oeis.org/A303735) — metric dimension of Q_n; exact
+  values for n ≤ 13, with a(11)–a(13) contributed by V. S. Miller (2023).
+- R. C. Read, *Every one a winner, or how to avoid isomorphism search*, Ann.
+  Discrete Math. 2 (1978); I. A. Faradžev (1978) — orderly generation, the
+  isomorph-rejection technique used by the enumerator.
 - N. Mladenović, J. Kratica, V. Kovačević-Vujčić, M. Čangalović, *Variable neighborhood
   search for metric dimension and minimal doubly resolving set problems*, EJOR 220 (2012).
 - N. Nikolić, M. Čangalović, I. Grujičić, *Symmetry properties of resolving sets and
@@ -85,6 +122,8 @@ verification never touches the search code.
 - C. Lu, Q. Ye, *A bridge between the minimal doubly resolving set problem in (folded)
   hypercubes and the coin weighing problem*, Discrete Appl. Math. 309 (2022),
   [arXiv:2012.00396](https://arxiv.org/abs/2012.00396).
+- P. Erdős, A. Rényi, *On two problems of information theory*, Publ. Math. Inst.
+  Hungar. Acad. Sci. 8 (1963) — the coin-weighing problem and the constant M(n).
 - D. G. Cantor, W. H. Mills, *Determination of a subset from certain combinatorial
   properties*, Canad. J. Math. 18 (1966) — the classical construction behind the
   n=30 riddle answer of 17 attempts.

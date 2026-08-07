@@ -50,6 +50,35 @@ ALL matrices via a totalizer encoding, repeat until UNSAT (which would prove the
 bound tight at that size). Symmetry breaking: first row/column fixed, double-lex
 ordering. State (the ban list) persists across restarts.
 
+**This approach did not settle β(Q₁₄); exhaustive enumeration did** (see
+[`../enumerate/`](../enumerate/)). The CEGAR route is kept here because the way
+it failed is informative:
+
+- **It never closed even 7×11**, the smallest open instance at the time, after
+  13 hours and 6,600 accumulated bans — while the enumerator settled the same
+  instance in 1.75 seconds. The loop reliably drove candidates down to one or two
+  kernel vectors and then crawled, learning only a handful of new constraints per
+  iteration while solve times grew.
+- **Encoding dominated everything.** The ban constraint only needs the
+  one-directional implication "this row forces a nonzero dot product", so the
+  totalizer computes far more than is used. Replacing it, for supports of size
+  ≤ 8, with a direct encoding that forbids each exactly-half pattern — no
+  auxiliary variables, C(|S|,t) clauses per row — took the real 29,000-ban
+  instance from 218 to 55 auxiliary variables per ban and made iterations about
+  100× cheaper. Worth knowing before anyone encodes cardinality *disequality*
+  with an off-the-shelf totalizer.
+- **Transplanted constraints were dead weight.** Workers seeded with a shared
+  pool of ~33,000 previously-found bans ran two to three orders of magnitude
+  slower per iteration than workers that started empty and learned their own.
+- **Symmetry-aware counterexample mining fixed the wrong problem.** Mining the
+  symmetry orbit of each proposal raised the fresh-constraint rate ~50×, but did
+  not move the kernel-vector count — the surviving near-misses were genuinely
+  distinct matrices, not disguised duplicates.
+
+The lesson we take from it: for this problem the structure is better exploited by
+generating canonical objects directly than by asking a solver to rediscover the
+symmetry through learned clauses.
+
 ## Provenance
 
 The search was built and orchestrated end-to-end with Claude (Anthropic Fable 5),
