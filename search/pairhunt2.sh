@@ -1,9 +1,18 @@
 #!/bin/bash
 # Extend-first sibling pipeline over W28 bases. usage: pairhunt2.sh <worker> <nworkers>
-set -u
+set -euo pipefail
 D="$(cd "$(dirname "$0")" && pwd)"
+if [ "$#" -ne 2 ] || ! [[ "$1" =~ ^[0-9]+$ && "$2" =~ ^[1-9][0-9]*$ ]] || [ "$1" -ge "$2" ]; then
+  echo "usage: $0 <worker: 0..nworkers-1> <nworkers>" >&2
+  exit 2
+fi
 W=$1
 NW=$2
+for required in sa3 process_base.py; do
+  [ -e "$D/$required" ] || { echo "missing campaign tool: $D/$required" >&2; exit 2; }
+done
+[ -d "$D/pairbases" ] || { echo "missing campaign directory: $D/pairbases" >&2; exit 2; }
+[ -d "$D/pairlogs" ] || { echo "missing campaign directory: $D/pairlogs" >&2; exit 2; }
 i=-1
 for f in "$D"/pairbases/*.txt; do
   i=$((i + 1))

@@ -1,8 +1,11 @@
 #!/bin/bash
 # Slice fresh q x n children out of the 15x29 parents, extend-scan every newborn.
 # A ZERO extension at 14x27 or 13x24 is a NEW RECORD. Checkpointed per batch.
-set -u
+set -euo pipefail
 D="$(cd "$(dirname "$0")" && pwd)"
+for required in sliceaudit.js sa_q13 sa_q14; do
+  [ -e "$D/$required" ] || { echo "missing campaign input/tool: $D/$required" >&2; exit 2; }
+done
 batch=${1:-0}
 while :; do
   batch=$((batch + 1))

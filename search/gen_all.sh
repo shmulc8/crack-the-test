@@ -1,8 +1,12 @@
 #!/bin/bash
-# Generate demo_<q>x<n>.txt landmark matrices for every n=1..30 at best-known q.
-set -u
+# Historical demo generator for n=1..29. Requires campaign seed matrices that
+# are intentionally not distributed in this compact verification repository.
+set -euo pipefail
 D="$(cd "$(dirname "$0")" && pwd)"
 cd "$D"
+for required in best29_a.txt won_14x26_s16.txt; do
+  [ -s "$required" ] || { echo "missing campaign input: $D/$required" >&2; exit 2; }
+done
 
 slice() { # slice <cols> <src> <out>
   [ -s "$3" ] && return 0
@@ -36,7 +40,7 @@ slice 26 won_14x26_s16.txt   demo_14x26.txt
 slice 25 won_14x26_s16.txt   demo_14x25.txt
 slice 24 won_14x26_s16.txt   demo_14x24.txt
 
-# exact-beta sizes (n<=13) and published-bound sizes (n=14..23, 30)
+# exact-beta sizes (n<=13) and published-bound sizes (n=14..23)
 gen 1 1 10;  gen 2 2 10;  gen 3 3 10;  gen 4 4 10;  gen 4 5 30
 gen 5 6 30;  gen 6 7 30;  gen 6 8 60;  gen 7 9 30;  gen 7 10 60
 gen 8 11 30; gen 8 12 30; gen 8 13 90
@@ -45,7 +49,6 @@ gen 10 16 90; gen 10 17 120
 gen 11 18 120
 gen 12 19 120; gen 12 20 150
 gen 13 21 120; gen 13 22 150; gen 13 23 300
-gen 16 30 120
 
 echo "=== verify all ==="
 fail=0

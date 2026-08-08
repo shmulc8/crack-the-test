@@ -4,8 +4,9 @@
 //   rows 0..11 packed 5 bits each into a 60-bit key, rows 12..14 into a 15-bit aux;
 //   enumerate 3^15 left / 3^(n-15) right ternary half-vectors, radix-sort keys, merge.
 //
-// usage: ./sa count <matrixfile> <n>
-//        ./sa anneal <n> <seconds> <seedfile|RAND> <rngseed> <outfile>
+// usage: ./sa count <matrixfile> <n> [wcap]
+//        ./sa anneal <n> <seconds> <seedfile|RAND> <rngseed> <outfile> [wcap]
+//        ./sa extend|pair|polish|circ ...  (see search/METHODS.md)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +14,8 @@
 #include <stdint.h>
 #include <math.h>
 #include <time.h>
+#include <errno.h>
+#include <limits.h>
 
 #ifndef Q
 #define Q 15
@@ -40,6 +43,30 @@ static long ipow3(int e) { long r = 1; while (e--) r *= 3; return r; }
 static int8_t nullZ[MAXNULLS][32];
 static int nNulls, nullOverflow;
 static int staleL, staleR;
+
+static int parse_long_arg(const char *name, const char *text, long min, long max, long *out) {
+  char *end = NULL;
+  errno = 0;
+  long value = strtol(text, &end, 10);
+  if (errno || end == text || *end != '\0' || value < min || value > max) {
+    fprintf(stderr, "invalid %s: %s\n", name, text);
+    return 0;
+  }
+  *out = value;
+  return 1;
+}
+
+static int parse_u64_arg(const char *name, const char *text, uint64_t *out) {
+  char *end = NULL;
+  errno = 0;
+  unsigned long long value = strtoull(text, &end, 10);
+  if (text[0] == '-' || errno || end == text || *end != '\0') {
+    fprintf(stderr, "invalid %s: %s\n", name, text);
+    return 0;
+  }
+  *out = (uint64_t)value;
+  return 1;
+}
 
 static void recordPair(long li, long ri) {
   int8_t z[32]; long a = li, b = ri; int nz = 0;
@@ -275,10 +302,14 @@ static int loadMatrix(const char *path) {
   if (!f) return 0;
   char line[128];
   int j = 0;
-  while (j < Q && fgets(line, sizeof line, f)) {
-    if (line[0] == '#') continue;
-    if ((int)strlen(line) < N) continue;
-    for (int i = 0; i < N; i++) w[j][i] = line[i] == '+' ? 1 : -1;
+  while (fgets(line, sizeof line, f)) {
+    int len = (int)strcspn(line, "\r\n");
+    if (len == 0 || line[0] == '#') continue;
+    if (j >= Q || len != N) { fclose(f); return 0; }
+    for (int i = 0; i < N; i++) {
+      if (line[i] != '+' && line[i] != '-') { fclose(f); return 0; }
+      w[j][i] = line[i] == '+' ? 1 : -1;
+    }
     j++;
   }
   fclose(f);
@@ -286,10 +317,20 @@ static int loadMatrix(const char *path) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 2) { fprintf(stderr, "usage\n"); return 1; }
+  if (argc < 2) { fprintf(stderr, "usage: %s {count|extend|circ|pair|polish|anneal} ...\n", argv[0]); return 1; }
   const char *mode = argv[1];
-  int isCount = mode[0] == 'c' && mode[1] == 'o';
-  N = atoi(isCount ? argv[3] : argv[2]);
+  if (Q < 1 || Q > 15) { fprintf(stderr, "compile-time Q must be in 1..15\n"); return 1; }
+  int isCount = !strcmp(mode, "count");
+  int valid_arity = (isCount && (argc == 4 || argc == 5)) ||
+                    (!strcmp(mode, "extend") && (argc == 6 || argc == 7)) ||
+                    (!strcmp(mode, "circ") && (argc == 5 || argc == 6)) ||
+                    (!strcmp(mode, "pair") && argc == 4) ||
+                    (!strcmp(mode, "polish") && (argc == 7 || argc == 8)) ||
+                    (!strcmp(mode, "anneal") && (argc == 7 || argc == 8));
+  if (!valid_arity) { fprintf(stderr, "invalid mode or argument count\n"); return 1; }
+  long parsed;
+  if (!parse_long_arg("n", isCount ? argv[3] : argv[2], 1, 30, &parsed)) return 1;
+  N = (int)parsed;
   NL = (N + 1) / 2;
   if (NL > 15) NL = 15;
   NR = N - NL;
@@ -304,6 +345,7 @@ int main(int argc, char **argv) {
     NR = N / 2 < 13 ? N / 2 : 13;
     NL = N - NR;
     if (NL > 15) { NL = 15; NR = N - NL; }
+    if (NR > 13) { fprintf(stderr, "pair mode requires a right half of at most 13 columns\n"); return 1; }
   }
   NR = N - NL;
   SL = ipow3(NL); SR = ipow3(NR);
@@ -314,21 +356,28 @@ int main(int argc, char **argv) {
   tmpK = malloc(SM * 8); tmpI = malloc(SM * 4);
   auxEnumL = malloc(SL * 2); auxEnumR = malloc(SR * 2);
   cdL = malloc(SL * 4); cdR = malloc(SR * 4);
+  if (!keyEnumL || !keyEnumR || !kL || !kR || !iL || !iR || !tmpK || !tmpI ||
+      !auxEnumL || !auxEnumR || !cdL || !cdR) { fprintf(stderr, "out of memory\n"); return 1; }
 
   if (isCount) { // count <file> <n> [wcap]
-    if (argc > 4) WCAP = atoi(argv[4]);
+    if (argc > 4) { if (!parse_long_arg("wcap", argv[4], 0, 30, &parsed)) return 1; WCAP = (int)parsed; }
     if (!loadMatrix(argv[2])) { fprintf(stderr, "bad matrix\n"); return 1; }
     printf("nulls=%ld%s\n", evalAll(1, 1), WCAP ? " (weight-capped)" : "");
     return 0;
   }
 
-  if (mode[0] == 'e') { // extend <n> <matrixfile> <candStart> <candEnd> [threshold]
+  if (!strcmp(mode, "extend")) { // extend <n> <matrixfile> <candStart> <candEnd> [threshold]
     // find +-1 columns c with NO ternary preimage under the loaded matrix:
     // appending such a column keeps the null count at zero. threshold 0 = stop
     // merging a candidate at its first preimage (ZERO-only hunting, fastest).
     if (!loadMatrix(argv[3])) { fprintf(stderr, "bad matrix\n"); return 1; }
-    long cs = atol(argv[4]), ce = atol(argv[5]);
-    long thr = argc > 6 ? atol(argv[6]) : 4;
+    long cs, ce, thr = 4;
+    long max_cand = 1L << Q;
+    if (!parse_long_arg("candidate start", argv[4], 0, max_cand, &cs) ||
+        !parse_long_arg("candidate end", argv[5], 0, max_cand, &ce) || cs > ce ||
+        (argc > 6 && !parse_long_arg("threshold", argv[6], 0, LONG_MAX, &thr))) {
+      fprintf(stderr, "invalid candidate range or threshold\n"); return 1;
+    }
     computeDeltas(); buildSide(1); buildSide(0);
     static uint32_t cnt[32768];
     static int32_t touched[4096];
@@ -374,9 +423,13 @@ int main(int argc, char **argv) {
     // negation (g2 <= ~g2), orbit swap handled by scanning all g2 per g1.
     // Cascade: weight-cap 2 -> 6 -> exact; survivors of each stage escalate.
     if (N != 2 * Q) { fprintf(stderr, "circ needs n == 2*Q\n"); return 1; }
-    long g1s = atol(argv[3]), g1e = atol(argv[4]);
-    long stride = argc > 5 ? atol(argv[5]) : 1;
     const long M = 1L << Q, MASK15 = M - 1;
+    long g1s, g1e, stride = 1;
+    if (!parse_long_arg("g1 start", argv[3], 0, M, &g1s) ||
+        !parse_long_arg("g1 end", argv[4], 0, M, &g1e) || g1s > g1e ||
+        (argc > 5 && !parse_long_arg("stride", argv[5], 1, LONG_MAX, &stride))) {
+      fprintf(stderr, "invalid circulant range or stride\n"); return 1;
+    }
     long tried = 0, s2 = 0, s3 = 0, found = 0;
     for (long g1 = g1s; g1 < g1e; g1 += stride) {
       int canon = 1;
@@ -407,7 +460,7 @@ int main(int argc, char **argv) {
               w[j][Q + k] = ((g2 >> ((j + k) % Q)) & 1) ? 1 : -1;
           computeDeltas(); buildSide(0);
           if (mergeCount(0) > 0) continue;
-          if (st == 0) { surv2[ns2++] = g2; tried = tried; }
+          if (st == 0) surv2[ns2++] = g2;
           else if (st == 1) surv6[ns6++] = g2;
           else {
             found++;
@@ -435,10 +488,13 @@ int main(int argc, char **argv) {
     computeDeltas(); buildSide(1); buildSide(0);
     enum { MAXZ = 4096 };
     static int8_t zc[MAXZ][16]; int nz = 0;
-    for (long cand = 0; cand < (1L << Q) && nz < MAXZ; cand++) {
+    for (long cand = 0; cand < (1L << Q); cand++) {
       int8_t v[16];
       for (int j = 0; j < Q; j++) v[j] = ((cand >> j) & 1) ? 1 : -1;
-      if (preimages(v, 0) == 0) { memcpy(zc[nz++], v, Q); }
+      if (preimages(v, 0) == 0) {
+        if (nz >= MAXZ) { fprintf(stderr, "more than %d zero-preimage columns; refusing an incomplete pair scan\n", MAXZ); return 1; }
+        memcpy(zc[nz++], v, Q);
+      }
     }
     printf("zero-preimage columns: %d\n", nz); fflush(stdout);
     long pairs = 0;
@@ -459,11 +515,14 @@ int main(int argc, char **argv) {
     return pairs > 0 ? 0 : 2;
   }
 
-  if (mode[0] == 'p') { // polish <n> <seconds> <matrixfile> <rngseed> <outfile> [wcap]
-    int seconds = atoi(argv[3]);
-    rng_s = strtoull(argv[5], NULL, 10) * 2654435761u + 1;
+  if (!strcmp(mode, "polish")) { // polish <n> <seconds> <matrixfile> <rngseed> <outfile> [wcap]
+    if (!parse_long_arg("seconds", argv[3], 1, INT_MAX, &parsed)) return 1;
+    int seconds = (int)parsed;
+    uint64_t seed;
+    if (!parse_u64_arg("rngseed", argv[5], &seed)) return 1;
+    rng_s = seed * 2654435761u + 1;
     const char *outfile = argv[6];
-    if (argc > 7) WCAP = atoi(argv[7]);
+    if (argc > 7) { if (!parse_long_arg("wcap", argv[7], 0, 30, &parsed)) return 1; WCAP = (int)parsed; }
     if (!loadMatrix(argv[4])) { fprintf(stderr, "bad seed\n"); return 1; }
     time_t t0 = time(NULL);
     staleL = staleR = 1;
@@ -531,10 +590,13 @@ int main(int argc, char **argv) {
   }
 
   // anneal <n> <seconds> <seedfile|RAND> <rngseed> <outfile> [wcap]
-  int seconds = atoi(argv[3]);
-  rng_s = strtoull(argv[5], NULL, 10) * 2654435761u + 1;
+  if (!parse_long_arg("seconds", argv[3], 1, INT_MAX, &parsed)) return 1;
+  int seconds = (int)parsed;
+  uint64_t seed;
+  if (!parse_u64_arg("rngseed", argv[5], &seed)) return 1;
+  rng_s = seed * 2654435761u + 1;
   const char *outfile = argv[6];
-  if (argc > 7) WCAP = atoi(argv[7]);
+  if (argc > 7) { if (!parse_long_arg("wcap", argv[7], 0, 30, &parsed)) return 1; WCAP = (int)parsed; }
   if (strcmp(argv[4], "RAND") == 0) {
     for (int j = 0; j < Q; j++) for (int i = 0; i < N; i++) w[j][i] = (rnd() & 1) ? 1 : -1;
   } else if (!loadMatrix(argv[4])) { fprintf(stderr, "bad seed\n"); return 1; }

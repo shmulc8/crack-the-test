@@ -13,7 +13,7 @@
 #include <string.h>
 #include <stdint.h>
 
-static int q, n, W[16][32];
+static int q, n, W[16][30];
 
 typedef struct { uint64_t a; uint32_t b; } Sig; /* rows 0-11 in a (5 bits each), rows 12-15 in b */
 typedef struct { Sig s; uint32_t idx; } Ent;
@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
     if (line[0] == '#' || line[0] == '\n') continue;
     int len = (int)strcspn(line, "\r\n");
     if (n == 0) n = len;
-    if (len != n || q >= 16 || n > 32) { fprintf(stderr, "malformed matrix\n"); return 2; }
+    if (len != n || q >= 16 || n > 30) { fprintf(stderr, "malformed matrix (supports 1-16 rows and 1-30 columns)\n"); fclose(f); return 2; }
     for (int i = 0; i < n; i++) {
       if (line[i] != '+' && line[i] != '-') { fprintf(stderr, "bad char\n"); return 2; }
       W[q][i] = line[i] == '+' ? 1 : -1;
@@ -50,6 +50,7 @@ int main(int argc, char **argv) {
     q++;
   }
   fclose(f);
+  if (q == 0 || n == 0) { fprintf(stderr, "empty matrix\n"); return 2; }
   int nL = (n + 1) / 2; if (nL > 15) nL = 15;
   int nR = n - nL;
   long sizeL = 1, sizeR = 1;

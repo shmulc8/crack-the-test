@@ -3,6 +3,8 @@
    extend-scan each for a 15x30 record. usage: process_base.py <basefile> <extlog>"""
 import os, re, subprocess, sys
 
+if len(sys.argv) != 3:
+    raise SystemExit(__doc__)
 base, extlog = sys.argv[1], sys.argv[2]
 D = os.path.dirname(os.path.abspath(base)).rsplit("/pairbases", 1)[0]
 tag = os.path.basename(base).replace(".txt", "")
@@ -15,7 +17,7 @@ npcol = pcol.translate(str.maketrans("+-", "-+"))
 brows = [l.strip() for l in open(base) if l.strip()]
 
 def run(args):
-    return subprocess.run(args, capture_output=True, text=True).stdout
+    return subprocess.run(args, capture_output=True, text=True, check=True).stdout
 
 zeros = re.findall(r"^ZERO .* col=([+-]+)$", open(extlog).read(), re.M)
 fresh = [z for z in zeros if z != pcol and z != npcol]

@@ -2,7 +2,10 @@
 date: 2026-08-07
 
 ## Primary computation
-enum3 8 14 --split 10 --splitdepth 6 --canondepth 8, all 10 parts:
+The archived run used the `enum.c` implementation at commit `43d14d1` (then
+built as `enum3`). The current source adds fail-closed argument, allocation and
+capacity checks without changing the valid-run search. Command: `enum 8 14
+--split 10 --splitdepth 6 --canondepth 8`, all 10 parts:
   DONE in 569.07s  nodes/depth: [0,1,6,18,143,1082,11364,12734,132789,1491018,10192494,20933585,1883143,3188,0]  total=34661565  rate=60909 nodes/s  canon=298295 skipped=909985
   DONE in 559.84s  nodes/depth: [0,1,6,18,143,1082,11364,12759,133408,1479521,9951393,20165300,1920265,1784,0]  total=33677044  rate=60155 nodes/s  canon=298556 skipped=917714
   DONE in 551.10s  nodes/depth: [0,1,6,18,143,1082,11364,12651,132536,1460334,9733262,19343246,1731305,2081,0]  total=32428029  rate=58842 nodes/s  canon=296648 skipped=909518
@@ -14,6 +17,11 @@ enum3 8 14 --split 10 --splitdepth 6 --canondepth 8, all 10 parts:
   DONE in 571.71s  nodes/depth: [0,1,6,18,143,1082,11364,12673,132025,1481572,10189480,21157557,2007961,6082,0]  total=34999964  rate=61220 nodes/s  canon=295300 skipped=902676
   DONE in 563.59s  nodes/depth: [0,1,6,18,143,1082,11364,12818,134569,1503467,10169974,20438209,1838879,4535,0]  total=34115065  rate=60531 nodes/s  canon=301800 skipped=917787
   => 10/10 parts: solutions found: 0
+  => distinct partitioned search-tree nodes: 339,979,093
+     The ten part totals add up to 340,092,619, but --splitdepth 6 means every
+     part walks the whole frontier down to depth 6 before it skips anything, so
+     those 12,614 nodes (0+1+6+18+143+1082+11364) are counted ten times over.
+     Subtracting the nine duplicate copies leaves 339,979,093.
 
 ## Ladder reproduced from scratch (matches OEIS A303735 exactly)
   no 7x11, 7x12, 7x13, 7x14   (each ~1s)
@@ -28,4 +36,13 @@ enum3 8 14 --split 10 --splitdepth 6 --canondepth 8, all 10 parts:
 
 ## Corollaries
   beta(Q_15) = 9   (no 8x15 since no 8x14 by column deletion; upper bound 9 is exhibited)
-  M(14) = 8        (Erdos-Renyi coin weighing, via the Lu-Ye bridge)
+  M(14) = 8        (beta(Q_14)=9 gives M >= 8 via beta-1 <= M <= beta;
+                    M <= 8 is the weighing certificate matrices/M14_le_8.txt)
+  D(7) = 12        (largest dissociated set in {0,1}^7: E(8)=13 gives D(7) <= 12
+                    via E(q) >= D(q-1)+1; McKay's 2014 sets give D(7) >= 12)
+
+## Cross-validation against McKay (2014)
+  thm_check : 118485/118485 McKay 12-sets, adjoined with 0, are valid 8x13 matrices
+  reconcile : all 118485 of his S_7 orbits occur among our 195086; 0 missing
+  checkdiff : all 76601 extra orbits re-tested by brute force; none dissociated
+  independently reproduced 2026-08-09; see enumerate/crossvalidate/RESULT.md

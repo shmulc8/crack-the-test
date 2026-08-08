@@ -16,7 +16,8 @@ such that no nonzero z ∈ {−1,0,1}ⁿ has Wz = 0. See the root README for why
 |---|---|---|
 | **β(Q₁₄) = 9** | proved | no 8×14 and no 7×14 detecting matrix exists (exhaustive) |
 | **β(Q₁₅) = 9** | proved | no 8×15 (column deletion from 8×14); 9×15 matrix in `matrices/` |
-| **M(14) = 8** | proved | Erdős–Rényi coin weighing, via the Lu–Ye bridge |
+| **M(14) = 8** | proved | Erdős–Rényi coin weighing; β(Q₁₄)=9 gives ≥ 8, certificate `matrices/M14_le_8.txt` gives ≤ 8 |
+| **D(7) = 12** | reproved | largest dissociated set in {0,1}⁷; `E(8) = 13` gives `D(7) ≤ 12` via `E(q) ≥ D(q−1)+1`, McKay's sets give ≥ 12 |
 | β(Q₂₄) ≤ 13, β(Q₂₆) ≤ 14, β(Q₂₉) ≤ 15 | certified | explicit matrices in `matrices/` |
 | β(Q₁₁) = β(Q₁₂) = β(Q₁₃) = 8 | reproduced | agrees with OEIS A303735 (Miller, MaxSAT, 2023) |
 
@@ -69,6 +70,10 @@ depth 9 → 12.85 s. Pick it empirically per (q, n).
 ---
 
 ## 3. What did not work
+
+The timing and iteration figures in this section are contemporaneous campaign
+notes. The large raw solver logs are not distributed in this repository, so
+these measurements are context—not independently reproducible proof evidence.
 
 ### CEGAR / SAT never closed the problem
 
@@ -147,29 +152,32 @@ For the exact value, in order of how much weight we place on it:
 
 1. **External agreement.** The enumerator reproduces β(Q₁₁), β(Q₁₂), β(Q₁₃) = 8,
    computed independently by V. S. Miller in 2023 with a MaxSAT solver. Two
-   unrelated methods, same answers. This matters more than any self-check.
-2. **An independent reimplementation.** A clean-room CEGAR SAT solver, written by
-   a different model (Gemini, via the Antigravity CLI) from the problem statement
-   alone with no access to this code, agrees on **18 of 19** decidable instances —
-   every nonexistence result up to and including **7×14**, and every existence
-   result up to 8×13. It could *not* settle 8×14: it stalled after ~308,000
-   counterexamples and estimated 10–50 hours, independently rediscovering the
-   CEGAR wall described in §3. So the 7×14 half of the β(Q₁₄) lower bound has
-   external confirmation; the 8×14 half does not.
+   unrelated methods give the same answers. This is a useful outside control at
+   smaller parameters, not an independent check of 8×14.
+2. **Agreement with an independent 2014 dataset.** The 8×13 output is compared
+   against Brendan McKay's extremal dissociated sets in {0,1}⁷, computed by a
+   different author with different code in a different formulation. All
+   **118,485** of his inequivalent sets occur among ours under a common
+   canonicalisation, with none missing; each of them, adjoined with the zero
+   vector, is a valid 8×13 detecting matrix (118,485 / 118,485); and every
+   12-set we derive that is *not* in his file is re-tested by brute force and
+   confirmed non-dissociated, accounting for the difference exactly. Details and
+   code in [`enumerate/crossvalidate/`](enumerate/crossvalidate/). This covers
+   8×13, not 8×14.
 3. **Positive control on the machinery.** The identical code and flags — including
    the work-splitting — *do* find matrices for 8×11, 8×12 and 8×13, in every
    part. A checker that cannot fail is not a checker.
 4. **Partition coherence.** All ten parts of the 8×14 run report identical node
-   counts down to the split depth (`0,1,6,18,143,1082,11364`) and disjoint work
-   below it.
-5. **A different logical route.** `enumerate/verify_extensions.py` never searches
-   to depth 14. Deleting a column from an 8×14 matrix leaves an 8×13 one, so if
-   every 8×13 matrix is extension-maximal, no 8×14 exists. Written in Python,
-   sums rebuilt from scratch, sharing no code with the C search.
+   counts through depth 6 (`0,1,6,18,143,1082,11364`); the code assigns each
+   outgoing branch to exactly one valid partition.
+5. **Sampled extension check.** `enumerate/verify_extensions.py` rebuilds sums in
+   Python and tries all 128 extension columns for each supplied 8×13 matrix. The
+   recorded result covers 40 sampled classes. It is a positive control, not a
+   second exhaustive route to the 8×14 result.
 
 **Known limitation.** The enumerator and the extension checker were written by
-the same author in the same sitting, so items 3–5 are internal checks. Items 1
-and 2 are external, and neither covers **8×14** itself — the one instance the
+the same author in the same sitting, so items 3–5 are internal checks. Items
+1–2 are external, and neither covers **8×14** itself — the one instance the
 new value actually depends on. A second exhaustive run of 8×14 by unrelated
 code, or a SAT proof emitting a DRAT certificate, would be worth more than any
 further internal cross-check.
@@ -185,7 +193,22 @@ of the search. The lower bound inherits whatever confidence 8×14 carries.
 - **a(16) of A303735.** The conjecture is 10, i.e. no 9×16 detecting matrix.
   This needs q = 9, which the current code does not support: the 64-bit packing
   uses 8 bits × 8 coordinates and would have to become 7 bits × 9. The search is
-  also substantially larger (256 column types instead of 128).
+  also substantially larger (256 column types instead of 128). Earlier
+  exploratory extrapolations varied by more than an order of magnitude, so no
+  compute estimate is claimed here without a reproducible q = 9 benchmark.
+
+  It would also settle a question in a different field. `E(9) ≤ 15` gives
+  `D(8) ≤ 14` by the proposition in `enumerate/crossvalidate/`, and
+  `matrices/M14_le_8.txt` is already a dissociated 14-set in {0,1}⁸ — so the
+  same run yields **D(8) = 14**, which McKay lists as open and which his
+  conjecture `D(k) = ⌊½(k+1)log₂(k+1)⌋` predicts.
+
+- **Is `E(q) = D(q−1) + 1`?** Only `≥` is proved. Equality holds at every
+  computable point, q = 3…8. Under equality McKay's conjecture for `D` and the
+  Mladenović et al. (2012) conjecture for `β` are the same conjecture: it
+  reproduces A303735 for n ≤ 13 and predicts `8,8,8,9,9,10,10` for n = 11…17,
+  which is exactly their prediction. The two were made ten years apart in
+  different fields with no cross-citation.
 - **Optimisations left on the table**, if a bigger case is attempted: replacing
   the brute-force permutation loop in the canonicity test with partition
   refinement (nauty-style) would allow canonicalising at the depths where the

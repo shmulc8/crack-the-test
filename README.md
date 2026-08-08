@@ -1,7 +1,8 @@
 # The metric dimension of hypercubes: β(Q₁₄) = 9, and new upper bounds for Q₂₄, Q₂₆, Q₂₉
 
-Two kinds of result on the metric dimension β(Q_n) of the hypercube, both with
-machine-checkable certificates.
+Two kinds of result on the metric dimension β(Q_n) of the hypercube: explicit,
+machine-checkable matrices for the upper bounds, and reproducible exhaustive
+search code plus the recorded partition totals for the lower bound.
 
 ## 1. An exact value: β(Q₁₄) = 9
 
@@ -15,7 +16,7 @@ MaxSAT solver. This repo proves the fourth:
 |---|---|
 | **β(Q₁₄) = 9** | exhaustive: no 8×14 detecting matrix exists (and none for 7×14) |
 | **β(Q₁₅) = 9** | corollary below, with its own certificate |
-| M(14) = 8 | Erdős–Rényi coin-weighing constant, via the Lu–Ye bridge |
+| **M(14) = 8** | Erdős–Rényi coin-weighing constant, with its own certificate |
 
 β(Q₁₅) ≥ 9 follows because deleting a column from an 8×15 detecting matrix would
 leave an 8×14 one, so no 8×15 exists either. The matching upper bound is
@@ -23,10 +24,33 @@ leave an 8×14 one, so no 8×15 exists either. The matching upper bound is
 matrix found here and checkable in seconds — so both halves of β(Q₁₅) = 9 are
 self-contained rather than resting on a published resolving set.
 
+**M(14) = 8.** The Erdős–Rényi constant M(n) is the least number of {0,1}
+weighings that separate every subset of n coins on a spring scale. It is a
+different quantity from β(Q_n), which counts ±1 rows, and the two are only
+pinned to within one of each other:
+
+> β(Q_n) − 1 ≤ M(n) ≤ β(Q_n).
+
+The right inequality normalises row 0 of a detecting matrix to all +1 by column
+sign flips — which preserves the detecting property, since Wz = 0 and (WD)(Dz) = 0
+are the same condition — and reads the q rows off as q weighings, one of which is
+the all-ones weighing that supplies the subset size. The left inequality adds an
+all-ones row to a weighing strategy. The gap is genuinely not constant — for
+n ≤ 10 it is 1 exactly at n = 4, 7, 9 and 0 elsewhere — so an exact β does
+**not** by itself determine M.
+
+This settles M(14) exactly. The upper half M(14) ≤ 8 was already reachable —
+Lu–Ye (2022) Table 2 records Ψ(Q₁₄) = 9 from the VNS and IPBS searches, and
+Ψ = M + 1 — but the matching lower bound was not available. β(Q₁₄) = 9 supplies
+it: M(14) ≥ 8. [`matrices/M14_le_8.txt`](matrices/M14_le_8.txt) re-derives the
+upper half here (14 vectors in {0,1}⁸ whose 2¹⁴ subset sums are pairwise
+distinct), so M(14) = 8 is checkable end to end in this repo.
+
 Code, method and reproduction instructions: [`enumerate/`](enumerate/). The
 search also reproduces β(Q₁₁) = β(Q₁₂) = β(Q₁₃) = 8 in about a second each,
-agreeing with Miller's independent MaxSAT computation — which is the strongest
-correctness evidence available, since the two methods share nothing.
+agreeing with Miller's independent MaxSAT computation. That is a useful external
+control on the method at smaller parameters; it does not independently verify
+the decisive 8×14 run.
 
 ## 2. Three improved upper bounds
 
@@ -52,15 +76,16 @@ If x ≠ y have equal distance to every vᵢ, then z = x − y is a nonzero vect
 {−1,0,1}ⁿ with Wz = 0 — contradiction. ∎
 
 Call such a W a **detecting matrix**. The lemma runs both ways: an upper bound is
-certified by exhibiting one, and a *lower* bound is certified by proving none
-exists at that size. Hence β(Q_n) = min { q : a q×n detecting matrix exists },
-which is exactly what [`enumerate/`](enumerate/) decides.
+certified by exhibiting one, while a *lower* bound requires an exhaustive
+nonexistence computation. Hence β(Q_n) = min { q : a q×n detecting matrix
+exists }, which is exactly what [`enumerate/`](enumerate/) decides.
 
 ## Verify it yourself
 
 Every upper-bound certificate in `matrices/` reduces to one finite check — the
 matrix has no nonzero ternary kernel vector — done exhaustively by
-meet-in-the-middle over all 3ⁿ candidates (≈14.3M half-assignments at q=15). Two
+meet-in-the-middle over all 3ⁿ candidates (the largest half has 3¹⁵ ≈ 14.3M
+assignments for the 29-column certificate). Two
 independent implementations, seconds each:
 
 ```sh
@@ -73,8 +98,9 @@ cc -O2 -o verify verify.c
 ```
 
 Expected output ends with `VALID certificate: beta(Q_n) <= q`.
-`./test.sh` runs both implementations on all three matrices plus a negative
-control (a deliberately broken matrix that must be rejected).
+`./test.sh` runs both implementations on all four sign matrices, checks the
+M(14) weighing certificate, and requires both kinds of deliberately broken
+certificate plus an empty matrix to be rejected.
 
 For the exact value, `enumerate/ladder.sh` reproduces every published term of
 A303735 and then settles 8×14.

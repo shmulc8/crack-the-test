@@ -17,11 +17,19 @@ catch a bug in the C incremental test, the packing, or the pruning.
 
 usage: verify_extensions.py <classification.log> [q] [n]
 """
-import itertools, re, sys
+import argparse, re
 
-LOG = sys.argv[1]
-q = int(sys.argv[2]) if len(sys.argv) > 2 else 8
-n = int(sys.argv[3]) if len(sys.argv) > 3 else 13
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("classification_log")
+parser.add_argument("q", nargs="?", type=int, default=8)
+parser.add_argument("n", nargs="?", type=int, default=13)
+parser.add_argument("--expect-complete", type=int, metavar="COUNT",
+                    help="assert the exact class count before making an exhaustive conclusion")
+args = parser.parse_args()
+LOG = args.classification_log
+q, n = args.q, args.n
+if q < 2 or n < 1 or args.expect_complete is not None and args.expect_complete < 1:
+    parser.error("q, n, and --expect-complete must be positive")
 NT = 1 << (q - 1)
 
 def col(t):
@@ -49,6 +57,10 @@ for line in open(LOG):
         classes.append([int(x) for x in m.group(1).split()])
 
 print(f"read {len(classes)} classes of {q}x{n} from {LOG}")
+if not classes:
+    raise SystemExit("no solution classes found")
+if args.expect_complete is not None and len(classes) != args.expect_complete:
+    raise SystemExit(f"expected {args.expect_complete} classes for a complete classification, got {len(classes)}")
 bad_class, extendable, checked = 0, [], 0
 for i, cls in enumerate(classes):
     if len(cls) != n:
@@ -81,5 +93,10 @@ if extendable:
     for i, cls, t in extendable[:5]:
         print(f"  EXTENDS: class {i} {cls} + type {t}")
     print(f"*** A {q}x{n+1} DETECTING MATRIX EXISTS — the search verdict is WRONG ***")
-elif bad_class == 0 and checked:
+    raise SystemExit(1)
+elif bad_class:
+    raise SystemExit(1)
+elif args.expect_complete is not None:
     print(f"*** every {q}x{n} class is extension-maximal => NO {q}x{n+1} MATRIX EXISTS ***")
+else:
+    print(f"SAMPLE PASS: all {checked} supplied classes are extension-maximal; this is not an exhaustive proof")

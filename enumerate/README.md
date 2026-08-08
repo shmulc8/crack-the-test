@@ -28,9 +28,15 @@ The first two rows give β(Q₁₁) = β(Q₁₂) = β(Q₁₃) = 8, matching A3
 those terms were computed independently by Victor S. Miller in 2023 with the RC2
 MaxSAT solver. The third row gives **β(Q₁₄) = 9**, since 7×14 also fails.
 
-Two corollaries: **β(Q₁₅) = 9** (deleting a column from an 8×15 matrix would
-leave an 8×14 one, so none exists; a 9-element resolving set for n = 15 is
-already known) and **M(14) = 8** for the Erdős–Rényi coin-weighing constant.
+A corollary: **β(Q₁₅) = 9** (deleting a column from an 8×15 matrix would leave an
+8×14 one, so none exists; `../matrices/beta_Q15_le_9.txt` supplies the matching
+upper-bound certificate).
+
+The Erdős–Rényi constant **M(14) = 8** needs a second ingredient. M(n) counts
+{0,1} weighings, β(Q_n) counts ±1 rows, and they are only pinned to within one of
+each other: β(Q_n) − 1 ≤ M(n) ≤ β(Q_n), and for n ≤ 10 the gap is 1 exactly at
+n = 4, 7, 9. So β(Q₁₄) = 9 supplies only M(14) ≥ 8; the upper bound is the
+weighing certificate `../matrices/M14_le_8.txt`.
 
 ## Method
 
@@ -76,9 +82,10 @@ for p in $(seq 0 9); do
 done; wait
 ```
 
-Each part prints its node counts per depth. The counts down to the split depth
-are identical across parts, which is what a coherent partition looks like; below
-it the parts are disjoint. All ten report `solutions found: 0`.
+Each part prints its node counts per depth. All parts traverse the same nodes
+through depth 6; the candidate branches leaving those nodes, and therefore the
+depth-7-and-deeper subtrees, are assigned by round-robin to exactly one valid
+partition. All ten report `solutions found: 0`.
 
 ## Independent checks
 
@@ -86,8 +93,13 @@ it the parts are disjoint. All ten report `solutions found: 0`.
   8×13 in every part — so the work-splitting is not silently dropping branches.
 - β(Q₁₁), β(Q₁₂), β(Q₁₃) reproduce A303735, i.e. an outside computation by a
   different author using a different method (MaxSAT).
-- `verify_extensions.py` takes a different route entirely: deleting a column
-  from an 8×14 detecting matrix leaves an 8×13 one, so if every 8×13 matrix
-  admits no 14th column then no 8×14 exists. It rebuilds each matrix from
-  scratch in Python, re-verifies it is detecting, and tries all 128 possible
-  columns. Sampled 8×13 matrices are all detecting and none extends.
+- The 8×13 output agrees with Brendan McKay's independently computed 2014
+  dataset of extremal dissociated sets in {0,1}⁷: all 118,485 of his
+  inequivalent sets occur among ours, none missing, and the difference is
+  accounted for exactly. This also re-derives **D(7) = 12** from our side. See
+  [`crossvalidate/`](crossvalidate/).
+- `verify_extensions.py` rebuilds supplied 8×13 matrices from scratch in Python
+  and tries all 128 possible extension columns. The recorded run is explicitly
+  a 40-class sample, so it is a positive control rather than a second exhaustive
+  proof. The script only prints an exhaustive conclusion when invoked with an
+  exact `--expect-complete COUNT` assertion.

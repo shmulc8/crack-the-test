@@ -1,0 +1,10 @@
+# M(14) <= 8 : weighing matrix, entries 0/1 (NOT a +-1 detecting matrix)
+# 8 weighings x 14 coins; all 2^14 subset sums are pairwise distinct
+01101100111110
+01011011111100
+10010001110111
+00111100101001
+11100011110010
+01100010010101
+00010111011011
+10001010010011

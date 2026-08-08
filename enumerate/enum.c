@@ -1,7 +1,8 @@
 /* Exhaustive enumeration of detecting matrices — canonical + monotone-candidate.
  *
- * See enum.c for the reformulation (columns are 2^(q-1) types; "detecting" ==
- * "all 2^n subset sums distinct") and enum2.c for lex-min canonical pruning.
+ * Columns are 2^(q-1) normalized types; "detecting" is equivalent to all 2^n
+ * subset sums being distinct. Lex-min canonical pruning removes symmetric
+ * prefixes under row permutations and row sign flips.
  *
  * What this version adds:
  *
@@ -26,6 +27,9 @@
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
+#include <errno.h>
+#include <limits.h>
+#include <math.h>
 
 #define MAXQ 8
 #define MAXN 20
@@ -54,6 +58,30 @@ static struct timespec t_start, t_last;
 static int NPERM;
 static unsigned char *permtab;
 
+static int parse_int_arg(const char *name, const char *text, int *out) {
+    char *end = NULL;
+    errno = 0;
+    long value = strtol(text, &end, 10);
+    if (errno || end == text || *end != '\0' || value < INT_MIN || value > INT_MAX) {
+        fprintf(stderr, "invalid %s: %s\n", name, text);
+        return 0;
+    }
+    *out = (int)value;
+    return 1;
+}
+
+static int parse_double_arg(const char *name, const char *text, double *out) {
+    char *end = NULL;
+    errno = 0;
+    double value = strtod(text, &end);
+    if (errno || end == text || *end != '\0' || !isfinite(value)) {
+        fprintf(stderr, "invalid %s: %s\n", name, text);
+        return 0;
+    }
+    *out = value;
+    return 1;
+}
+
 static inline uint32_t hash_slot(uint64_t x) {
     return (uint32_t)((x * 0x9E3779B97F4A7C15ULL) >> (64 - LOGTAB));
 }
@@ -80,6 +108,7 @@ static void build_perms(void) {
     for (int i = 2; i <= k; i++) f *= i;
     NPERM = f;
     permtab = malloc((size_t)NPERM * NT);
+    if (!permtab) { fprintf(stderr, "out of memory building permutations\n"); exit(2); }
     int idx[MAXQ], p = 0;
     for (int i = 0; i < k; i++) idx[i] = i;
     while (1) {
@@ -157,6 +186,11 @@ static int dfs(int depth, long long count, int ncand) {
     }
     if (ncand < n - depth) return 0;                 /* lookahead prune */
 
+    if (count >= TABSIZE) {
+        fprintf(stderr, "hash table capacity exceeded at depth %d (%lld sums); refusing an incomplete search\n",
+                depth, count);
+        exit(2);
+    }
     gen[depth]++;
     if (gen[depth] == 0) { memset(stamp[depth], 0, TABSIZE * sizeof(uint32_t)); gen[depth] = 1; }
     for (long long i = 0; i < count; i++) tab_insert(depth, sums[i]);
@@ -187,17 +221,31 @@ static int dfs(int depth, long long count, int ncand) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 3) { fprintf(stderr, "usage: enum3 q n [--split N --part B] [--maxsol K] [--report S] [--splitdepth D] [--canondepth D]\n"); return 1; }
-    q = atoi(argv[1]); n = atoi(argv[2]);
+    if (argc < 3) { fprintf(stderr, "usage: %s q n [--split N --part B] [--maxsol K] [--report S] [--splitdepth D] [--canondepth D]\n", argv[0]); return 1; }
+    if (!parse_int_arg("q", argv[1], &q) || !parse_int_arg("n", argv[2], &n)) return 1;
+    int canon_depth_was_set = 0;
     for (int i = 3; i < argc; i++) {
-        if (!strcmp(argv[i], "--split") && i + 1 < argc) nsplit = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "--part") && i + 1 < argc) part = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "--maxsol") && i + 1 < argc) maxsol = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "--report") && i + 1 < argc) report_every = atof(argv[++i]);
-        else if (!strcmp(argv[i], "--splitdepth") && i + 1 < argc) split_depth = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "--canondepth") && i + 1 < argc) canon_depth = atoi(argv[++i]);
+        const char *flag = argv[i];
+        if (i + 1 >= argc) { fprintf(stderr, "missing value for %s\n", flag); return 1; }
+        if (!strcmp(flag, "--split")) { if (!parse_int_arg(flag, argv[++i], &nsplit)) return 1; }
+        else if (!strcmp(flag, "--part")) { if (!parse_int_arg(flag, argv[++i], &part)) return 1; }
+        else if (!strcmp(flag, "--maxsol")) { if (!parse_int_arg(flag, argv[++i], &maxsol)) return 1; }
+        else if (!strcmp(flag, "--report")) { if (!parse_double_arg(flag, argv[++i], &report_every)) return 1; }
+        else if (!strcmp(flag, "--splitdepth")) { if (!parse_int_arg(flag, argv[++i], &split_depth)) return 1; }
+        else if (!strcmp(flag, "--canondepth")) { if (!parse_int_arg(flag, argv[++i], &canon_depth)) return 1; canon_depth_was_set = 1; }
+        else { fprintf(stderr, "unknown option: %s\n", flag); return 1; }
     }
     if (q < 2 || q > MAXQ || n < 2 || n > MAXN) { fprintf(stderr, "q<=8, n<=20\n"); return 1; }
+    if (!canon_depth_was_set && canon_depth > n) canon_depth = n;
+    if (nsplit < 1 || part < 0 || part >= nsplit) {
+        fprintf(stderr, "partition must satisfy --split >= 1 and 0 <= --part < --split\n");
+        return 1;
+    }
+    if (maxsol < 1 || report_every <= 0 || split_depth < 1 || (nsplit > 1 && split_depth >= n) ||
+        canon_depth < 0 || canon_depth > n) {
+        fprintf(stderr, "require maxsol>=1, report>0, splitdepth>=1 (and <n when split), and 0<=canondepth<=n\n");
+        return 1;
+    }
     NT = 1 << (q - 1);
     for (int t = 0; t < NT; t++) {
         int64_t dd = 1;
@@ -207,9 +255,11 @@ int main(int argc, char **argv) {
     }
     build_perms();
     sums = malloc(sizeof(uint64_t) * ((size_t)1 << n));
+    if (!sums) { fprintf(stderr, "out of memory allocating subset sums\n"); return 2; }
     for (int d = 0; d <= n + 1; d++) {
         tab[d] = malloc(sizeof(uint64_t) * TABSIZE);
         stamp[d] = calloc(TABSIZE, sizeof(uint32_t));
+        if (!tab[d] || !stamp[d]) { fprintf(stderr, "out of memory allocating hash tables\n"); return 2; }
         gen[d] = 0;
     }
     uint64_t zero = 0;
@@ -233,6 +283,7 @@ int main(int argc, char **argv) {
     printf("]  total=%lld  rate=%.0f nodes/s  canon=%lld skipped=%lld\n",
            tot, tot / (el > 0 ? el : 1), canon_calls, canon_skips);
     printf("solutions found: %d\n", nsol);
-    if (!nsol) printf("*** NO %dx%d DETECTING MATRIX EXISTS (part %d/%d) ***\n", q, n, part, nsplit);
-    return nsol ? 7 : 0;
+    if (!nsol && nsplit == 1) printf("*** NO %dx%d DETECTING MATRIX EXISTS ***\n", q, n);
+    else if (!nsol) printf("*** no solutions in %dx%d partition %d/%d ***\n", q, n, part, nsplit);
+    return 0;  /* a completed search is successful; inspect "solutions found" for the verdict */
 }

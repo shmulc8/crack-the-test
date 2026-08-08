@@ -39,8 +39,11 @@ all 3^(n/2) half-assignments, pack each half's q row-sums into 5-bit fields
    independently written implementations (`survivors.js` here; `../verify.c` /
    `../verify.js` are clean-room versions of the same check).
 
-`gen_all.sh` regenerates a best-known-size landmark matrix for every n ≤ 30
-(used by the interactive site).
+The shell/JavaScript pipeline files are retained as historical orchestration.
+They require campaign matrices and compiled per-row counters that are not
+distributed here; they are not standalone reproduction recipes. `gen_all.sh`
+can rebuild the n ≤ 29 demo set when those inputs are supplied, but the q = 16,
+n = 30 engine is not part of this repository.
 
 ## Lower-bound side: `cegar2.py`
 
@@ -52,7 +55,8 @@ ordering. State (the ban list) persists across restarts.
 
 **This approach did not settle β(Q₁₄); exhaustive enumeration did** (see
 [`../enumerate/`](../enumerate/)). The CEGAR route is kept here because the way
-it failed is informative:
+it failed is informative. The figures below are contemporaneous campaign notes;
+the large raw logs are not included and these timings are not proof evidence:
 
 - **It never closed even 7×11**, the smallest open instance at the time, after
   13 hours and 6,600 accumulated bans — while the enumerator settled the same

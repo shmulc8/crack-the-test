@@ -10,11 +10,14 @@
 const file = process.argv[2];
 if (!file) { console.error("usage: verify.js <matrix.txt>"); process.exit(2); }
 const { readFileSync } = await import("fs");
-const lines = readFileSync(file, "utf8").trim().split("\n").filter((l) => !l.startsWith("#"));
+const text = readFileSync(file, "utf8").trim();
+if (!text) { console.error("empty matrix"); process.exit(2); }
+const lines = text.split(/\r?\n/).filter((l) => !l.startsWith("#"));
+if (lines.length === 0 || lines[0].length === 0) { console.error("empty matrix"); process.exit(2); }
 const n = lines[0].length;
 const q = lines.length;
 if (lines.some((l) => l.length !== n || /[^+-]/.test(l))) { console.error("malformed matrix"); process.exit(2); }
-if (q > 15 || n > 32) { console.error("checker supports q <= 15, n <= 32"); process.exit(2); }
+if (q > 15 || n > 30) { console.error("checker supports q <= 15, n <= 30"); process.exit(2); }
 const W = lines.map((l) => [...l].map((c) => (c === "+" ? 1 : -1)));
 
 // Split columns into left (nL) and right (n - nL); pack each half-assignment's
@@ -56,7 +59,8 @@ const sizeL = Math.pow(3, nL), sizeR = Math.pow(3, nR);
   }
 }
 // right half: for every z_R, look up z_L with W_L z_L = -W_R z_R
-const nulls = [];
+let nullCount = 0;
+const examples = [];
 {
   let key = 0, aux = 0;
   for (let j = 0; j < fq; j++) { let s = OFF; for (let i = nL; i < n; i++) s += W[j][i]; key += s * p32[j]; }
@@ -71,7 +75,10 @@ const nulls = [];
         for (let i = 0; i < nL; i++) { z[i] = (a % 3) - 1; a = Math.floor(a / 3); }
         let b = idx;
         for (let i = 0; i < nR; i++) { z[nL + i] = (b % 3) - 1; b = Math.floor(b / 3); }
-        if (z.some((v) => v !== 0)) nulls.push(z);
+        if (z.some((v) => v !== 0)) {
+          nullCount++;
+          if (examples.length < 10) examples.push(z);
+        }
       }
       h = (h + 1) & MASK;
     }
@@ -82,9 +89,9 @@ const nulls = [];
   }
 }
 console.log(`matrix: ${q} x ${n}`);
-console.log(`nonzero ternary kernel vectors: ${nulls.length}`);
-for (const z of nulls.slice(0, 10)) console.log("  " + [...z].map((v) => "-.+"[v + 1]).join(""));
-if (nulls.length === 0) {
+console.log(`nonzero ternary kernel vectors: ${nullCount}`);
+for (const z of examples) console.log("  " + [...z].map((v) => "-.+"[v + 1]).join(""));
+if (nullCount === 0) {
   console.log(`VALID certificate: beta(Q_${n}) <= ${q}  (${q + 1}-attempt strategy for a ${n}-question test)`);
 } else {
   console.log("INVALID: matrix does not resolve the hypercube");

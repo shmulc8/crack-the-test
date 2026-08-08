@@ -1,2 +1,9 @@
 verify
+/enumerate/enum
+/enumerate/crossvalidate/thm_check
+/enumerate/crossvalidate/reconcile
+/enumerate/crossvalidate/checkdiff
+/enumerate/crossvalidate/mckay7.txt
+/enumerate/crossvalidate/all813.txt
+/enumerate/crossvalidate/s813_*.txt
 *.o
