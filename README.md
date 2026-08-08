@@ -124,6 +124,8 @@ The certificates stand on their own: verification never touches the search code.
 - C. Lu, Q. Ye, *A bridge between the minimal doubly resolving set problem in (folded)
   hypercubes and the coin weighing problem*, Discrete Appl. Math. 309 (2022),
   [arXiv:2012.00396](https://arxiv.org/abs/2012.00396).
+- S. Söderberg, H. S. Shapiro, *A combinatory detection problem*, Amer. Math. Monthly 70 (1963) 1066–1070 — foundational algebraic Kronecker product construction for detecting matrices and early bounds (including f(15) ≤ 9 and f(26) ≤ 15).
+- R. K. Guy, R. J. Nowakowski, *Coin-Weighing Problems*, Amer. Math. Monthly 102 (1995) 164–167 — comprehensive survey of coin-weighing variants, exact-weight spring balance models, and historical bounds.
 - P. Erdős, A. Rényi, *On two problems of information theory*, Publ. Math. Inst.
   Hungar. Acad. Sci. 8 (1963) — the coin-weighing problem and the constant M(n).
 - D. G. Cantor, W. H. Mills, *Determination of a subset from certain combinatorial
