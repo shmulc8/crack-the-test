@@ -165,13 +165,21 @@ For the exact value, in order of how much weight we place on it:
    Python and tries all 128 extension columns for each supplied 8×13 matrix. The
    recorded result covers 40 sampled classes. It is a positive control, not a
    second exhaustive route to the 8×14 result.
+6. **Separate implementation of the decisive run.** The safe-Rust enumerator
+   independently implements the parser, subset-sum table, orderly generation,
+   partitioning, and search state without `unsafe` code or external crates. Its
+   ten complete 8×14 runs all returned no solution and matched the C enumerator's
+   full per-depth node vectors exactly. This is strong protection against an
+   implementation-language bug, but it deliberately follows the same algorithm
+   and pruning argument; it is not a third-party or independent-method proof.
 
-**Known limitation.** The enumerator and the extension checker were written by
-the same author in the same sitting, so items 3–5 are internal checks. Items
-1–2 are external, and neither covers **8×14** itself — the one instance the
-new value actually depends on. A second exhaustive run of 8×14 by unrelated
-code, or a SAT proof emitting a DRAT certificate, would be worth more than any
-further internal cross-check.
+**Known limitation.** The C enumerator and extension checker were written by the
+same author in the same sitting, so items 3–5 are internal checks. The Rust run
+in item 6 is separately implemented but belongs to the same project and uses the
+same search argument. Items 1–2 are external, and neither covers **8×14** itself
+— the one instance the new value actually depends on. A third-party exhaustive
+implementation, or a SAT proof emitting a DRAT certificate, would therefore add
+more confidence than another internal cross-check.
 
 For β(Q₁₅) = 9 the upper bound is a plain certificate: `matrices/beta_Q15_le_9.txt`
 is verified by `verify.c` and `verify.js`, written independently of each other and
