@@ -58,7 +58,7 @@ ordering. State (the ban list) persists across restarts.
 it failed is informative. The figures below are contemporaneous campaign notes;
 the large raw logs are not included and these timings are not proof evidence:
 
-- **It never closed even 7×11**, the smallest open instance at the time, after
+- **It never closed even 7×11**, the smallest negative ladder instance tested, after
   13 hours and 6,600 accumulated bans — while the enumerator settled the same
   instance in 1.75 seconds. The loop reliably drove candidates down to one or two
   kernel vectors and then crawled, learning only a handful of new constraints per

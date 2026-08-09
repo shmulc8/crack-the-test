@@ -136,7 +136,7 @@ same column. Deleting any column of a valid certificate keeps it valid, so the
 ## Search code
 
 - [`enumerate/`](enumerate/) — the exhaustive enumerator behind β(Q₁₄) = 9.
-  It includes independent C and safe-Rust implementations plus a direct Python
+  It includes separate C and safe-Rust implementations plus a direct Python
   small-instance reference checker.
 - [`search/`](search/) — the annealer and extension pipelines behind the upper
   bounds, plus a methods write-up in [`search/METHODS.md`](search/METHODS.md)

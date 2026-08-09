@@ -1,8 +1,8 @@
 # Findings
 
 A lab notebook for the whole investigation, including the parts that failed.
-Negative results and measurements are recorded because they were expensive to
-obtain and are not, as far as we can tell, written down anywhere else.
+Negative results and measurements are retained as context for the successful
+enumeration approach.
 
 Everything below concerns **detecting matrices**: a q×n matrix with entries ±1
 such that no nonzero z ∈ {−1,0,1}ⁿ has Wz = 0. See the root README for why
@@ -22,7 +22,8 @@ such that no nonzero z ∈ {−1,0,1}ⁿ has Wz = 0. See the root README for why
 | β(Q₁₁) = β(Q₁₂) = β(Q₁₃) = 8 | reproduced | agrees with OEIS A303735 (Miller, MaxSAT, 2023) |
 
 β(Q₁₄) = 9 confirms the value Mladenović et al. (2012) predicted from an
-approximation algorithm. It was previously unproved: A303735 stops at n = 13.
+approximation algorithm and extends the exact values in A303735, which stop at
+n = 13.
 
 ---
 
@@ -77,13 +78,14 @@ these measurements are context—not independently reproducible proof evidence.
 
 ### CEGAR / SAT never closed the problem
 
-A counterexample-guided loop (propose a matrix with a SAT solver, find a kernel
-vector, forbid it for all matrices, repeat until UNSAT) is the obvious modern
-approach and it **failed**, in an instructive way.
+A counterexample-guided loop proposes a matrix with a SAT solver, finds a kernel
+vector, forbids it for all matrices, and repeats until UNSAT. In these experiments
+it did not close the target instances.
 
-- It never closed **7×11** — the smallest open instance — after **13 hours** and
-  ~6,600 accumulated constraints. The enumerator settled it in 1.75 s. Candidates
-  reliably reached one or two kernel vectors and then crawled.
+- It never closed **7×11** — the smallest negative ladder instance tested —
+  after **13 hours** and ~6,600 accumulated constraints. The enumerator settled
+  it in 1.75 s. Candidates reliably reached one or two kernel vectors and then
+  crawled.
 - The published-values ladder gives a sense of the growth in constraints needed:
 
   | instance | constraints at UNSAT |
@@ -96,8 +98,7 @@ approach and it **failed**, in an instructive way.
   | 6×9 | 961 |
   | 6×10 | 1,440 |
 
-  Extrapolating this curve suggested 8×14 would need ~100,000 constraints. It got
-  past 29,000 with no sign of convergence.
+  The 8×14 run passed 29,000 constraints without converging.
 
 ### Encoding cardinality *disequality*: totalizers waste most of their work
 
@@ -118,18 +119,14 @@ to a totalizer. The support-8 cutoff beats cutoffs of 6, 10 and 12 on *both*
 variables and clauses. Effect: 6×9 went from 40 s / 72,913 variables to
 **4 s / 5,437 variables**, and iterations on 8×14 got ~100× cheaper.
 
-Anyone encoding "the number of true literals is not exactly t" should check this
-before reaching for a totalizer.
-
-### Transplanted constraints are dead weight
+### Transplanted constraints slowed these runs
 
 Workers seeded with a shared pool of ~33,000 previously-discovered constraints
 ran **two to three orders of magnitude slower per iteration** than workers that
 started empty and learned their own (~3 iterations/hour versus ~15/minute). The
-constraints were valid and the pool was hard-won; it still hurt. Whatever a CDCL
-solver derives for itself is cheaper to carry than what you hand it.
+constraints were valid, but seeding them hurt performance in these runs.
 
-### Symmetry-aware counterexample mining fixed the wrong problem
+### Symmetry-aware counterexample mining did not improve convergence
 
 Mining each proposal's symmetry orbit and forbidding those kernel vectors too
 raised the fresh-constraint rate ~50× (from ~10 to ~500 per iteration) but did
@@ -137,12 +134,6 @@ raised the fresh-constraint rate ~50× (from ~10 to ~500 per iteration) but did
 near-misses were genuinely distinct matrices, not disguised duplicates. The
 symmetry needed exploiting at the level of *object generation*, not constraint
 learning — which is what the enumerator does.
-
-### The first-moment heuristic is wildly wrong here
-
-Treating the 2¹⁴ subset sums as independent predicts on the order of 10¹⁵ valid
-8×14 matrices. There are none. Correlations dominate completely; do not use
-counting heuristics to decide whether to look.
 
 ---
 
@@ -203,12 +194,8 @@ of the search. The lower bound inherits whatever confidence 8×14 carries.
   same run yields **D(8) = 14**, which McKay lists as open and which his
   conjecture `D(k) = ⌊½(k+1)log₂(k+1)⌋` predicts.
 
-- **Is `E(q) = D(q−1) + 1`?** Only `≥` is proved. Equality holds at every
-  computable point, q = 3…8. Under equality McKay's conjecture for `D` and the
-  Mladenović et al. (2012) conjecture for `β` are the same conjecture: it
-  reproduces A303735 for n ≤ 13 and predicts `8,8,8,9,9,10,10` for n = 11…17,
-  which is exactly their prediction. The two were made ten years apart in
-  different fields with no cross-citation.
+- **Is `E(q) = D(q−1) + 1`?** Only `≥` is proved. The tabulated values agree for
+  q = 3…8.
 - **Optimisations left on the table**, if a bigger case is attempted: replacing
   the brute-force permutation loop in the canonicity test with partition
   refinement (nauty-style) would allow canonicalising at the depths where the

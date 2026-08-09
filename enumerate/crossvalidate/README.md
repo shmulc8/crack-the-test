@@ -42,9 +42,8 @@ Whether `E(q) = D(q−1) + 1` in general is open.
 ## What the proposition buys
 
 Since the 8×14 enumeration gives `E(8) = 13`, the proposition yields
-`D(7) ≤ 12`. With McKay's explicit 12-element sets this re-derives
-**`D(7) = 12`** from a computation sharing no code, no method and no author with
-his — as far as we know, the first independent confirmation of that value.
+`D(7) ≤ 12`. With McKay's explicit 12-element sets this independently re-derives
+**`D(7) = 12`** using a different formulation and implementation.
 
 Applied to the next case: a 9×16 nonexistence result would give `E(9) ≤ 15` and
 hence `D(8) ≤ 14`, while `matrices/M14_le_8.txt` is already a dissociated
