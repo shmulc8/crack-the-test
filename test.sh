@@ -49,6 +49,8 @@ if python3 enumerate/verify_extensions.py "$sample_log" 8 13 --expect-complete 2
   echo "FAIL: extension checker accepted an incomplete classification"; exit 1
 fi
 echo "enumerator and extension checker controls passed"
+echo "== independent small-instance enumeration, symmetry, and partition controls"
+python3 enumerate/reference_check.py "$enum_bin"
 echo "== search-tool input validation"
 cc -O2 -o "$sa_bin" search/sa.c -lm
 if "$sa_bin" count "$empty_matrix" 4 >/dev/null 2>&1; then
@@ -58,4 +60,10 @@ if "$sa_bin" unknown 4 >/dev/null 2>&1; then
   echo "FAIL: search tool accepted an unknown mode"; exit 1
 fi
 echo "search-tool input validation passed"
+if command -v rustc >/dev/null 2>&1; then
+  echo "== independent safe-Rust enumerator controls"
+  (cd enumerate && ./rust_controls.sh)
+else
+  echo "SKIP: rustc not found; run enumerate/rust_controls.sh when Rust is available"
+fi
 echo "ALL CHECKS PASSED"

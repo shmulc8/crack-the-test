@@ -40,6 +40,11 @@ weighing certificate `../matrices/M14_le_8.txt`.
 
 ## Method
 
+The implementation-level completeness argument is in
+[`ENUMERATION_PROOF.md`](ENUMERATION_PROOF.md). It treats the reduction, DFS,
+each pruning rule, packed arithmetic, and ten-way partitioning separately, and
+maps each claim to an independent or differential control.
+
 Normalise row 0 to all +1 by flipping column signs. Every column is then one of
 2^(q−1) *types* — a ±1 vector whose first entry is +1 — and
 
@@ -86,6 +91,48 @@ Each part prints its node counts per depth. All parts traverse the same nodes
 through depth 6; the candidate branches leaving those nodes, and therefore the
 depth-7-and-deeper subtrees, are assigned by round-robin to exactly one valid
 partition. All ten report `solutions found: 0`.
+
+For a persistent audit bundle rather than temporary logs, run:
+
+```sh
+./run_8x14_audit.sh audit-8x14-YYYYMMDD
+```
+
+The script refuses to overwrite an existing directory and records the source
+commit and hash, environment, complete partition logs, structural log checks,
+and SHA-256 hashes. Fast differential controls against a deliberately simple
+Python enumerator are available separately:
+
+```sh
+cc -O2 -Wall -Wextra -Wpedantic -o enum enum.c
+python3 reference_check.py ./enum
+# Or run the same comparisons under AddressSanitizer and UBSan too:
+./audit_controls.sh
+```
+
+### Independent safe-Rust implementation
+
+[`enum.rs`](enum.rs) implements the same proved search in safe Rust without
+calling or wrapping `enum.c`. It uses Rust-owned fixed hash tables, checked
+argument and counter handling, and separately implemented permutation and
+canonicalization code. Compile and run all fast controls with:
+
+```sh
+./rust_controls.sh
+```
+
+That command matches complete raw solution sets against the direct Python
+enumerator, matches independently computed canonical representatives and split
+unions, reproduces the full known-value ladder, and compares a complete C/Rust
+node vector. Reproduce the decisive ten-part run and preserve its evidence with:
+
+```sh
+./run_8x14_rust_audit.sh rust-audit-8x14-YYYYMMDD
+```
+
+On the same arm64 Mac and workload, the recorded Rust rerun averaged 358.93
+seconds per partition versus 365.10 seconds for C. Every one of the ten full
+node vectors matched exactly; both implementations found zero solutions.
 
 ## Independent checks
 

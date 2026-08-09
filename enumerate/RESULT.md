@@ -23,6 +23,39 @@ capacity checks without changing the valid-run search. Command: `enum 8 14
      those 12,614 nodes (0+1+6+18+143+1082+11364) are counted ten times over.
      Subtracting the nine duplicate copies leaves 339,979,093.
 
+## Fresh fail-closed rerun
+
+The complete ten-part computation was rerun on 2026-08-09 with the hardened
+source at commit `6167a0f` and `enum.c` SHA-256
+`23745a5cb5679f1d2c5b28383787d526782c5b293fefe2e8324b8aa98ddf9437`.
+All ten node vectors exactly reproduced the primary computation above, all ten
+processes exited successfully, and all ten reported zero solutions. The run
+took 350.60--372.36 seconds per partition on Apple clang 21.0.0 / arm64 Darwin.
+
+The rerun used `run_8x14_audit.sh`, which preserves the exact source and binary,
+environment, complete logs, structural validation, and SHA-256 manifest in a
+new non-overwritten output directory. `check_partition_logs.py` required
+exactly partitions 0--9, the common depth-6 frontier
+`[0,1,6,18,143,1082,11364]`, one complete verdict per file, and no emitted
+solution.
+
+## Independent safe-Rust rerun
+
+A standalone safe-Rust implementation, `enum.rs`, reproduced the complete
+ten-part 8×14 computation on 2026-08-09. Its source SHA-256 was
+`418fe199dbb8475e5d7a6859e538907d22507a82967da29542815feeab7574a3`.
+All ten processes exited successfully, all ten found zero solutions, and every
+full node vector matched the corresponding C partition exactly—not just the
+common frontier or final verdict.
+
+Built with rustc 1.94.0 / LLVM 21.1.8 using native CPU tuning, LTO, one codegen
+unit and abort-on-panic, Rust averaged 358.93 seconds per partition against
+365.10 seconds for the fresh C run on the same machine. Its slowest partition
+took 365.57 seconds versus C's 372.36 seconds. Thus the second implementation
+meets the same-runtime requirement while using no `unsafe` Rust and no external
+crate dependencies. `run_8x14_rust_audit.sh` preserves the source, binary,
+environment, ten logs, structural check, and hashes.
+
 ## Ladder reproduced from scratch (matches OEIS A303735 exactly)
   no 7x11, 7x12, 7x13, 7x14   (each ~1s)
   8x11, 8x12, 8x13 all exist  (found instantly)
@@ -30,6 +63,11 @@ capacity checks without changing the valid-run search. Command: `enum 8 14
   => beta(Q_14) >= 8 from no 7x14; = 9 from no 8x14
 
 ## Independent checks
+  direct Python control: exact raw solution sets on 3x4, 4x4 and 5x6
+  canonical control: all 13 independently computed 5x6 orbit representatives match
+  partition control: three 5x6 parts are disjoint and union to the complete reference set
+  sanitizer control: the same checks pass under AddressSanitizer and UBSan
+  Rust control: full ten-part 8x14 run, exact C node-vector match in every part
   split control: identical settings find solutions on 8x11/8x12/8x13 in all 10 parts
   frontier coherence: all parts identical to depth 6 (0,1,6,18,143,1082,11364)
   extension check (Python, separate codebase): 40/40 sampled 8x13 detecting, 0 extendable

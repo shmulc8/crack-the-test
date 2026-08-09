@@ -52,6 +52,15 @@ agreeing with Miller's independent MaxSAT computation. That is a useful external
 control on the method at smaller parameters; it does not independently verify
 the decisive 8×14 run.
 
+The code-level exhaustiveness argument is written out in
+[`enumerate/ENUMERATION_PROOF.md`](enumerate/ENUMERATION_PROOF.md), including
+the proof obligations for every pruning rule and the ten-way split. A separate
+small Python enumerator checks complete solution sets, symmetry representatives,
+and partition unions on tractable instances without reusing the C search.
+The full 8×14 computation has also been reproduced by a standalone safe-Rust
+implementation whose ten complete node vectors match the C implementation
+exactly and whose runtime is comparable.
+
 ## 2. Three improved upper bounds
 
 | n  | best published | this repo | certificate |
@@ -127,6 +136,8 @@ same column. Deleting any column of a valid certificate keeps it valid, so the
 ## Search code
 
 - [`enumerate/`](enumerate/) — the exhaustive enumerator behind β(Q₁₄) = 9.
+  It includes independent C and safe-Rust implementations plus a direct Python
+  small-instance reference checker.
 - [`search/`](search/) — the annealer and extension pipelines behind the upper
   bounds, plus a methods write-up in [`search/METHODS.md`](search/METHODS.md)
   that includes what did *not* work on the lower-bound side.

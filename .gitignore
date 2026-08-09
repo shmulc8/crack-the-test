@@ -1,5 +1,6 @@
 verify
 /enumerate/enum
+/enumerate/enum-rust
 /enumerate/crossvalidate/thm_check
 /enumerate/crossvalidate/reconcile
 /enumerate/crossvalidate/checkdiff
@@ -7,3 +8,4 @@ verify
 /enumerate/crossvalidate/all813.txt
 /enumerate/crossvalidate/s813_*.txt
 *.o
+__pycache__/
