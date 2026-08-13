@@ -56,6 +56,16 @@ q9_prefix=${q9_control#CANONICAL Q9 CONTROL: }
 "$enum_bin" 9 15 --maxsol 1 --report 99999 \
   --prefix "$q9_prefix" \
   | grep -q '^solutions found: 1$'
+q9_pivot=$(python3 enumerate/q9_pivot_control.py matrices/beta_Q15_le_9.txt)
+q9_pivot_prefix=${q9_pivot#PIVOT CANONICAL Q9 CONTROL: }
+"$enum_bin" 9 15 --maxsol 1 --report 99999 --canondepth 15 --pivots \
+  --prefix "$q9_pivot_prefix" \
+  | grep -q '^solutions found: 1$'
+if "$enum_bin" 9 15 --maxsol 1 --report 99999 --canondepth 15 --pivots \
+    --prefix "$q9_prefix" | grep -q '^solutions found: 1$'; then
+  echo "FAIL: --pivots did not reject the baseline-canonical q9 prefix (pivot group inert at q=9)"; exit 1
+fi
+echo "q=9 --pivots positive control passed (accepts the O(q,Z)-canonical solution, rejects the baseline-canonical prefix)"
 if "$enum_bin" 9 16 --prefix 0,2,1 >/dev/null 2>&1; then
   echo "FAIL: enumerator accepted a non-increasing prefix"; exit 1
 fi

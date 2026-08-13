@@ -151,12 +151,18 @@ trust its verdict.
 
 ## 5. Packed subset sums are exact for this run
 
-Each coordinate occupies one byte of a `uint64_t`. The empty sum starts at
-bias 64 in every byte; a column contributes `+1` or `-1` to each coordinate.
-For `n<=20`, every coordinate remains between 44 and 84. It therefore never
-crosses a byte boundary, so ordinary 64-bit addition is exactly componentwise
-addition with no inter-field carry or borrow. The decisive case uses only 14
-columns and eight bytes.
+Each of the `q` coordinates occupies a fixed-width field of a `uint64_t`. The
+field width is eight bits for `q<=8` and seven bits for `q=9`, chosen at
+[enum.c#L350](enum.c#L350) so all `q` fields fit: `9*7 = 63 <= 64`. The empty
+sum starts at bias 64 in every field; each column contributes `+1` or `-1` to
+each coordinate, so every subset sum keeps each coordinate in `[64-n, 64+n]`.
+
+For `n<=20` that interval is `[44, 84]`, which lies inside both `[0, 255]`
+(eight-bit fields) and `[0, 127]` (seven-bit fields). No coordinate ever
+reaches its field boundary, so ordinary 64-bit addition is exactly
+componentwise addition with no inter-field carry or borrow. The decisive
+`beta(Q14)`/`beta(Q15)` cases have `q=9`: nine seven-bit fields, coordinates in
+`[49, 79]` and `[48, 80]`; the `q=9, n=16` frontier stays in `[48, 80]`.
 
 The array has space for all `2^n` sums. A child writes its translated half at
 `sums[count..2*count-1]` on lines [214-215](enum.c#L214-L215); recursive calls
