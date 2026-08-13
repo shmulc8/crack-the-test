@@ -1,6 +1,0 @@
-q=9 n=16: 256 types, 40320 perms, split 0/1 (depth 5), canon<=8
-forced prefix: 0 1 6 27 62 217
-
-DONE in 0.26s  nodes/depth: [0,1,1,1,1,1,1,20,189,1405,2576,397,0,0,0,0,0]  total=4593  rate=17398 nodes/s  canon=306 skipped=1467
-solutions found: 0
-*** no solutions below the requested prefix ***
