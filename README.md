@@ -4,6 +4,11 @@ Two kinds of result on the metric dimension β(Q_n) of the hypercube: explicit,
 machine-checkable matrices for the upper bounds, and reproducible exhaustive
 search code plus the recorded partition totals for the lower bound.
 
+Journal-style manuscript: [`paper/main.tex`](paper/main.tex). Reproduction and
+archival checklist: [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md). A copy-ready
+brief for an external mathematical reviewer is in
+[`EXTERNAL_REVIEW.md`](EXTERNAL_REVIEW.md); no external message has been sent.
+
 ## 1. An exact value: β(Q₁₄) = 9
 
 [OEIS A303735](https://oeis.org/A303735) gives β(Q_n) for n ≤ 13 —

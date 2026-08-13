@@ -1,0 +1,10 @@
+{
+  "estimate_available": false,
+  "estimate_reason": "every sampled unit must finish without finding a solution",
+  "finished_units": 8,
+  "selected_units": 8,
+  "statuses": {
+    "complete": 7,
+    "timeout": 1
+  }
+}

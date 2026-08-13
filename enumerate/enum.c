@@ -19,8 +19,13 @@
  *     vector of those bounds is a lex lower bound on any permuted image; if it
  *     already exceeds the current set, all (q-1)! permutations can be skipped.
  *
- * usage: enum3 q n [--split N --part B] [--maxsol K] [--report SEC]
- *                  [--splitdepth D] [--canondepth D]
+ * q=9 uses 7-bit packed coordinates; q<=8 keeps the original 8-bit layout.
+ * Frontier dumping and forced prefixes support reproducible sampling and a
+ * dynamically scheduled full run without changing the search tree.
+ *
+ * usage: enum q n [--split N --part B] [--maxsol K] [--report SEC]
+ *                 [--splitdepth D] [--canondepth D]
+ *                 [--dumpdepth D] [--prefix 0,T1,...]
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,7 +36,7 @@
 #include <limits.h>
 #include <math.h>
 
-#define MAXQ 8
+#define MAXQ 9
 #define MAXN 20
 #define LOGTAB 17
 #define TABSIZE (1u << LOGTAB)
@@ -43,6 +48,10 @@ static int maxsol = 3, canon_depth = 8, split_depth = 5;
 static double report_every = 60.0;
 static int nsplit = 1, part = 0;
 static long long split_counter = 0;
+static int field_bits = 8;
+static int dump_depth = -1;
+static long long frontier_count = 0;
+static int prefix_types[MAXN + 2], prefix_len = 0;
 
 static uint64_t *sums;
 static uint64_t *tab[MAXN + 2];
@@ -57,6 +66,8 @@ static struct timespec t_start, t_last;
 
 static int NPERM;
 static unsigned char *permtab;
+static int use_pivots = 0;
+static unsigned char pivottab[MAXQ][256];
 
 static int parse_int_arg(const char *name, const char *text, int *out) {
     char *end = NULL;
@@ -79,6 +90,33 @@ static int parse_double_arg(const char *name, const char *text, double *out) {
         return 0;
     }
     *out = value;
+    return 1;
+}
+
+static int parse_prefix_arg(const char *text) {
+    const char *p = text;
+    prefix_len = 0;
+    if (!*p) {
+        fprintf(stderr, "invalid --prefix: empty value\n");
+        return 0;
+    }
+    while (*p) {
+        char *end = NULL;
+        errno = 0;
+        long value = strtol(p, &end, 10);
+        if (errno || end == p || value < 0 || value > 255 ||
+            prefix_len >= MAXN + 1 || (*end != '\0' && *end != ',')) {
+            fprintf(stderr, "invalid --prefix: %s\n", text);
+            return 0;
+        }
+        prefix_types[prefix_len++] = (int)value;
+        if (*end == '\0') break;
+        p = end + 1;
+        if (!*p) {
+            fprintf(stderr, "invalid --prefix: %s\n", text);
+            return 0;
+        }
+    }
     return 1;
 }
 
@@ -126,41 +164,69 @@ static void build_perms(void) {
         int tmp = idx[i]; idx[i] = idx[j]; idx[j] = tmp;
         for (int a = i + 1, b = k - 1; a < b; a++, b--) { tmp = idx[a]; idx[a] = idx[b]; idx[b] = tmp; }
     }
+
+    for (int t = 0; t < NT; t++) pivottab[0][t] = (unsigned char)t;
+    for (int R = 1; R < q; R++) {
+        int r_bit = R - 1;
+        for (int t = 0; t < NT; t++) {
+            int b_R = (t >> r_bit) & 1;
+            int new_t = 0;
+            int out_bit = 0;
+            if (b_R) new_t |= (1 << out_bit);
+            out_bit++;
+            for (int r_other = 0; r_other < k; r_other++) {
+                if (r_other == r_bit) continue;
+                int b_other = (t >> r_other) & 1;
+                if (b_R ^ b_other) new_t |= (1 << out_bit);
+                out_bit++;
+            }
+            pivottab[R][t] = (unsigned char)new_t;
+        }
+    }
 }
 
-/* lex-min test with a popcount lower-bound precheck */
+/* lex-min test with a popcount lower-bound precheck and optional row pivots */
 static int canon_ok(const int *cur, int k) {
     unsigned char img[MAXN], lb[MAXN];
+    int transformed[MAXN];
     canon_calls++;
-    for (int a = 0; a < k; a++) {
-        int m = cur[a];
-        for (int i = 0; i < k; i++) {
-            int w = __builtin_popcount((unsigned)(cur[i] ^ m));
-            lb[i] = (unsigned char)((1u << w) - 1u);
-        }
-        for (int i = 1; i < k; i++) {           /* sort the bounds */
-            unsigned char v = lb[i]; int j = i - 1;
-            while (j >= 0 && lb[j] > v) { lb[j + 1] = lb[j]; j--; }
-            lb[j + 1] = v;
-        }
-        int threat = 0;
-        for (int i = 0; i < k; i++) {
-            if (lb[i] < cur[i]) { threat = 1; break; }
-            if (lb[i] > cur[i]) break;          /* bound already too large */
-        }
-        if (!threat) { canon_skips++; continue; }
 
-        for (int p = 0; p < NPERM; p++) {
-            const unsigned char *P = permtab + (size_t)p * NT;
-            for (int i = 0; i < k; i++) img[i] = P[cur[i] ^ m];
-            for (int i = 1; i < k; i++) {
-                unsigned char v = img[i]; int j = i - 1;
-                while (j >= 0 && img[j] > v) { img[j + 1] = img[j]; j--; }
-                img[j + 1] = v;
-            }
+    int max_pivots = use_pivots ? q : 1;
+
+    for (int piv = 0; piv < max_pivots; piv++) {
+        const unsigned char *piv_map = pivottab[piv];
+        for (int i = 0; i < k; i++) transformed[i] = piv_map[cur[i]];
+
+        for (int a = 0; a < k; a++) {
+            int m = transformed[a];
             for (int i = 0; i < k; i++) {
-                if (img[i] < cur[i]) return 0;
-                if (img[i] > cur[i]) break;
+                int w = __builtin_popcount((unsigned)(transformed[i] ^ m));
+                lb[i] = (unsigned char)((1u << w) - 1u);
+            }
+            for (int i = 1; i < k; i++) {           /* sort the bounds */
+                unsigned char v = lb[i]; int j = i - 1;
+                while (j >= 0 && lb[j] > v) { lb[j + 1] = lb[j]; j--; }
+                lb[j + 1] = v;
+            }
+            int threat = 0;
+            for (int i = 0; i < k; i++) {
+                if (lb[i] < cur[i]) { threat = 1; break; }
+                if (lb[i] > cur[i]) break;          /* bound already too large */
+            }
+            if (!threat) { canon_skips++; continue; }
+
+            for (int p = 0; p < NPERM; p++) {
+                const unsigned char *P = permtab + (size_t)p * NT;
+                for (int i = 0; i < k; i++) img[i] = P[transformed[i] ^ m];
+                for (int i = 1; i < k; i++) {
+                    unsigned char v = img[i]; int j = i - 1;
+                    while (j >= 0 && img[j] > v) { img[j + 1] = img[j]; j--; }
+                    img[j + 1] = v;
+                }
+                for (int i = 0; i < k; i++) {
+                    if (img[i] < cur[i]) return 0;
+                    if (img[i] > cur[i]) break;
+                }
             }
         }
     }
@@ -176,6 +242,13 @@ static void progress(void) {
 
 static int dfs(int depth, long long count, int ncand) {
     nodes[depth]++;
+    if (dump_depth >= 0 && depth == dump_depth) {
+        printf("FRONTIER ");
+        for (int i = 0; i < depth; i++) printf("%d%s", sol[i], i + 1 < depth ? "," : "");
+        printf("\n");
+        frontier_count++;
+        return 0;
+    }
     if (elapsed(&t_last) > report_every) { clock_gettime(CLOCK_MONOTONIC, &t_last); progress(); }
     if (depth == n) {
         nsol++;
@@ -208,6 +281,7 @@ static int dfs(int depth, long long count, int ncand) {
     for (int ci = 0; ci < nlive; ci++) {
         if (nlive - ci < n - depth) break;           /* not enough left */
         int t = L[ci];
+        if (depth < prefix_len && t != prefix_types[depth]) continue;
         if (depth == split_depth && nsplit > 1 && (split_counter++ % nsplit) != part) continue;
         sol[depth] = t;
         if (depth + 1 <= canon_depth && !canon_ok(sol, depth + 1)) continue;
@@ -221,11 +295,13 @@ static int dfs(int depth, long long count, int ncand) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 3) { fprintf(stderr, "usage: %s q n [--split N --part B] [--maxsol K] [--report S] [--splitdepth D] [--canondepth D]\n", argv[0]); return 1; }
+    if (argc < 3) { fprintf(stderr, "usage: %s q n [--split N --part B] [--maxsol K] [--report S] [--splitdepth D] [--canondepth D] [--dumpdepth D] [--prefix 0,T1,...]\n", argv[0]); return 1; }
     if (!parse_int_arg("q", argv[1], &q) || !parse_int_arg("n", argv[2], &n)) return 1;
     int canon_depth_was_set = 0;
     for (int i = 3; i < argc; i++) {
         const char *flag = argv[i];
+        if (!strcmp(flag, "--pivots")) { use_pivots = 1; continue; }
+        if (!strcmp(flag, "--no-pivots")) { use_pivots = 0; continue; }
         if (i + 1 >= argc) { fprintf(stderr, "missing value for %s\n", flag); return 1; }
         if (!strcmp(flag, "--split")) { if (!parse_int_arg(flag, argv[++i], &nsplit)) return 1; }
         else if (!strcmp(flag, "--part")) { if (!parse_int_arg(flag, argv[++i], &part)) return 1; }
@@ -233,9 +309,11 @@ int main(int argc, char **argv) {
         else if (!strcmp(flag, "--report")) { if (!parse_double_arg(flag, argv[++i], &report_every)) return 1; }
         else if (!strcmp(flag, "--splitdepth")) { if (!parse_int_arg(flag, argv[++i], &split_depth)) return 1; }
         else if (!strcmp(flag, "--canondepth")) { if (!parse_int_arg(flag, argv[++i], &canon_depth)) return 1; canon_depth_was_set = 1; }
+        else if (!strcmp(flag, "--dumpdepth")) { if (!parse_int_arg(flag, argv[++i], &dump_depth)) return 1; }
+        else if (!strcmp(flag, "--prefix")) { if (!parse_prefix_arg(argv[++i])) return 1; }
         else { fprintf(stderr, "unknown option: %s\n", flag); return 1; }
     }
-    if (q < 2 || q > MAXQ || n < 2 || n > MAXN) { fprintf(stderr, "q<=8, n<=20\n"); return 1; }
+    if (q < 2 || q > MAXQ || n < 2 || n > MAXN) { fprintf(stderr, "require 2<=q<=9 and 2<=n<=20\n"); return 1; }
     if (!canon_depth_was_set && canon_depth > n) canon_depth = n;
     if (nsplit < 1 || part < 0 || part >= nsplit) {
         fprintf(stderr, "partition must satisfy --split >= 1 and 0 <= --part < --split\n");
@@ -246,11 +324,34 @@ int main(int argc, char **argv) {
         fprintf(stderr, "require maxsol>=1, report>0, splitdepth>=1 (and <n when split), and 0<=canondepth<=n\n");
         return 1;
     }
+    if (dump_depth != -1 && (dump_depth < 1 || dump_depth >= n || nsplit != 1)) {
+        fprintf(stderr, "require 1<=dumpdepth<n and no split partition while dumping a frontier\n");
+        return 1;
+    }
+    if (prefix_len) {
+        if (prefix_len > n || prefix_types[0] != 0) {
+            fprintf(stderr, "prefix must start with normalized type 0 and contain at most n types\n");
+            return 1;
+        }
+        for (int i = 1; i < prefix_len; i++) {
+            if (prefix_types[i] <= prefix_types[i - 1]) {
+                fprintf(stderr, "prefix types must be strictly increasing\n");
+                return 1;
+            }
+        }
+    }
     NT = 1 << (q - 1);
+    for (int i = 0; i < prefix_len; i++) {
+        if (prefix_types[i] >= NT) {
+            fprintf(stderr, "prefix type %d is outside 0..%d for q=%d\n", prefix_types[i], NT - 1, q);
+            return 1;
+        }
+    }
+    field_bits = (q == 9) ? 7 : 8;
     for (int t = 0; t < NT; t++) {
         int64_t dd = 1;
         for (int j = 1; j < q; j++)
-            dd += (int64_t)(((t >> (j - 1)) & 1) ? -1 : 1) * ((int64_t)1 << (8 * j));
+            dd += (int64_t)(((t >> (j - 1)) & 1) ? -1 : 1) * ((int64_t)1 << (field_bits * j));
         delta[t] = dd;
     }
     build_perms();
@@ -263,14 +364,20 @@ int main(int argc, char **argv) {
         gen[d] = 0;
     }
     uint64_t zero = 0;
-    for (int j = 0; j < q; j++) zero += (uint64_t)BIAS << (8 * j);
+    for (int j = 0; j < q; j++) zero += (uint64_t)BIAS << (field_bits * j);
     sums[0] = zero; sums[1] = zero + delta[0]; sol[0] = 0;
     int nc = 0;
     for (int t = 1; t < NT; t++) cand[1][nc++] = t;
 
     clock_gettime(CLOCK_MONOTONIC, &t_start); t_last = t_start;
-    printf("q=%d n=%d: %d types, %d perms, split %d/%d (depth %d), canon<=%d\n",
-           q, n, NT, NPERM, part, nsplit, split_depth, canon_depth);
+    printf("q=%d n=%d: %d types, %d perms, split %d/%d (depth %d), canon<=%d%s\n",
+           q, n, NT, NPERM, part, nsplit, split_depth, canon_depth, use_pivots ? ", pivots=on" : "");
+    if (prefix_len) {
+        printf("forced prefix:");
+        for (int i = 0; i < prefix_len; i++) printf(" %d", prefix_types[i]);
+        printf("\n");
+    }
+    if (dump_depth >= 0) printf("dumping canonical frontier at depth %d\n", dump_depth);
     fflush(stdout);
 
     dfs(1, 2, nc);
@@ -283,7 +390,9 @@ int main(int argc, char **argv) {
     printf("]  total=%lld  rate=%.0f nodes/s  canon=%lld skipped=%lld\n",
            tot, tot / (el > 0 ? el : 1), canon_calls, canon_skips);
     printf("solutions found: %d\n", nsol);
-    if (!nsol && nsplit == 1) printf("*** NO %dx%d DETECTING MATRIX EXISTS ***\n", q, n);
+    if (dump_depth >= 0) printf("frontier prefixes: %lld\n", frontier_count);
+    else if (!nsol && prefix_len) printf("*** no solutions below the requested prefix ***\n");
+    else if (!nsol && nsplit == 1) printf("*** NO %dx%d DETECTING MATRIX EXISTS ***\n", q, n);
     else if (!nsol) printf("*** no solutions in %dx%d partition %d/%d ***\n", q, n, part, nsplit);
     return 0;  /* a completed search is successful; inspect "solutions found" for the verdict */
 }

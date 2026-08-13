@@ -1,0 +1,50 @@
+{
+  "attempts": [
+    {
+      "resume": false,
+      "started_utc": "2026-08-10T22:22:36.215597+00:00",
+      "unit_timeout": 60.0,
+      "workers": 4
+    }
+  ],
+  "binary": "enum",
+  "binary_sha256": "47fcdc278b2edd4c308578f64f18d57973bbb8dd02bc80d3e20c2463d4767e69",
+  "created_utc": "2026-08-10T22:22:36.147150+00:00",
+  "driver": "frontier_run.py",
+  "driver_sha256": "d9f7eba688fac6e6f3db2e9f4a4e4c61273318a684275f0ca1fc86c621e218fa",
+  "format": 1,
+  "frontier_depth": 6,
+  "frontier_node_vector": [
+    0,
+    1,
+    7,
+    26,
+    286,
+    3510,
+    66547,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "frontier_size": 66547,
+  "machine": "arm64",
+  "n": 16,
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "python": "3.9.6 (default, May 22 2026, 11:13:45) \n[Clang 21.0.0 (clang-2100.1.1.101)]",
+  "q": 9,
+  "report_seconds": 30.0,
+  "sample": 8,
+  "seed": 20260811,
+  "selected_units": 8,
+  "source": "enum.c",
+  "source_sha256": "51251b8fd8182c480ca08b7f8836ca0df90aade5640c2271b83d5d748788626f",
+  "unit_timeout": 60.0,
+  "workers": 4
+}

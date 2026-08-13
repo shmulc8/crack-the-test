@@ -9,3 +9,16 @@ verify
 /enumerate/crossvalidate/s813_*.txt
 *.o
 __pycache__/
+.DS_Store
+audit-*/
+/enumerate/audit-*/
+tmp-*/
+/enumerate/tmp-*/
+/paper/*.aux
+/paper/*.bbl
+/paper/*.blg
+/paper/*.fdb_latexmk
+/paper/*.fls
+/paper/*.log
+/paper/*.out
+/output/

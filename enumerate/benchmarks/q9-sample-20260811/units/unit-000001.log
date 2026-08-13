@@ -1,0 +1,5 @@
+q=9 n=16: 256 types, 40320 perms, split 0/1 (depth 5), canon<=8
+forced prefix: 0 1 6 25 42 61
+  t=     30s nodes=[0,1,1,1,1,1,1,1,1,2,162,8758,140357,382371,30121,0,0] sols=0 canon=17 skip=24
+
+DRIVER TIMEOUT after 60.0 seconds

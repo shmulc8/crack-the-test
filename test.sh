@@ -9,7 +9,8 @@ empty_matrix=$(mktemp "${TMPDIR:-/tmp}/crack-empty.XXXXXX")
 enum_bin=$(mktemp "${TMPDIR:-/tmp}/crack-enum.XXXXXX")
 sample_log=$(mktemp "${TMPDIR:-/tmp}/crack-sample.XXXXXX")
 sa_bin=$(mktemp "${TMPDIR:-/tmp}/crack-sa.XXXXXX")
-trap 'rm -f "$verify_bin" "$broken_m14" "$broken_27" "$empty_matrix" "$enum_bin" "$sample_log" "$sa_bin"' EXIT HUP INT TERM
+frontier_dir=$(mktemp -d "${TMPDIR:-/tmp}/crack-frontier.XXXXXX")
+trap 'rm -f "$verify_bin" "$broken_m14" "$broken_27" "$empty_matrix" "$enum_bin" "$sample_log" "$sa_bin"; rm -rf "$frontier_dir"' EXIT HUP INT TERM
 cc -O2 -o "$verify_bin" verify.c
 JS="bun"; command -v bun >/dev/null || JS="node"
 
@@ -49,6 +50,20 @@ if python3 enumerate/verify_extensions.py "$sample_log" 8 13 --expect-complete 2
   echo "FAIL: extension checker accepted an incomplete classification"; exit 1
 fi
 echo "enumerator and extension checker controls passed"
+echo "== q=9 packing, known-positive prefix, and frontier-driver controls"
+q9_control=$(python3 enumerate/q9_positive_control.py matrices/beta_Q15_le_9.txt)
+q9_prefix=${q9_control#CANONICAL Q9 CONTROL: }
+"$enum_bin" 9 15 --maxsol 1 --report 99999 \
+  --prefix "$q9_prefix" \
+  | grep -q '^solutions found: 1$'
+if "$enum_bin" 9 16 --prefix 0,2,1 >/dev/null 2>&1; then
+  echo "FAIL: enumerator accepted a non-increasing prefix"; exit 1
+fi
+python3 enumerate/frontier_run.py "$enum_bin" 4 6 --frontier-depth 3 \
+  --workers 2 --source enumerate/enum.c --output "$frontier_dir/run" >/dev/null
+python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert s["estimate_available"] and s["estimated_total_nodes"] == 6' \
+  "$frontier_dir/run/summary.json"
+echo "q=9 and frontier-driver controls passed"
 echo "== independent small-instance enumeration, symmetry, and partition controls"
 python3 enumerate/reference_check.py "$enum_bin"
 echo "== search-tool input validation"
