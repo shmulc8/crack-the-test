@@ -46,6 +46,20 @@ if [[ -z $c_nodes || $rust_nodes != "$c_nodes" ]]; then
 fi
 echo "C/Rust 7x14 node vectors match exactly"
 
+c_pivot=$("$c_bin" 7 14 --maxsol 1 --report 99999 --pivots)
+rust_pivot=$("$rust_bin" 7 14 --maxsol 1 --report 99999 --pivots)
+c_pivot_nodes=$(sed -n 's/^DONE .* nodes\/depth: \[\([^]]*\)\].*/\1/p' <<<"$c_pivot")
+rust_pivot_nodes=$(sed -n 's/^DONE .* nodes\/depth: \[\([^]]*\)\].*/\1/p' <<<"$rust_pivot")
+if [[ -z $c_pivot_nodes || $rust_pivot_nodes != "$c_pivot_nodes" ]]; then
+  echo "FAIL: C/Rust 7x14 --pivots node vectors differ" >&2
+  exit 1
+fi
+if [[ $c_pivot_nodes == "$c_nodes" ]]; then
+  echo "FAIL: --pivots did not change 7x14 pruning; flag likely inert" >&2
+  exit 1
+fi
+echo "C/Rust 7x14 --pivots node vectors match exactly (and prune more than baseline)"
+
 if "$rust_bin" 8 13 --split 10 --part 10 --splitdepth 6 >/dev/null 2>&1; then
   echo "FAIL: Rust accepted an invalid partition" >&2
   exit 1

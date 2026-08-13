@@ -77,7 +77,7 @@ def parse_frontier_log(path: Path, depth: int) -> tuple[list[str], list[int]]:
 
 
 def create_frontier(
-    binary: Path, q: int, n: int, depth: int, output: Path
+    binary: Path, q: int, n: int, depth: int, output: Path, pivots: bool = False
 ) -> tuple[list[str], list[int]]:
     log_path = output / "frontier-generation.log"
     command = [
@@ -91,6 +91,8 @@ def create_frontier(
         "--report",
         "1000000000",
     ]
+    if pivots:
+        command.append("--pivots")
     with log_path.open("w", encoding="utf-8") as stream:
         result = subprocess.run(
             command,
@@ -177,6 +179,7 @@ def run_unit(
     timeout: float | None,
     attempt: int,
     report_seconds: float,
+    pivots: bool = False,
 ) -> tuple[str, dict[str, Any]]:
     key = str(unit["unit_id"])
     suffix = "" if attempt == 1 else f"-attempt-{attempt:02d}"
@@ -192,6 +195,8 @@ def run_unit(
         "--prefix",
         str(unit["prefix"]),
     ]
+    if pivots:
+        command.append("--pivots")
     timed_out = False
     returncode = -1
     with log_path.open("w", encoding="utf-8") as stream:
@@ -291,6 +296,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source", type=Path, help="enumerator source to include in the manifest")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--pivots", action="store_true", help="use row-pivoting group symmetries for frontier generation")
     args = parser.parse_args()
     if not 2 <= args.q <= 9 or not 2 <= args.n <= 20:
         parser.error("require 2<=q<=9 and 2<=n<=20")
@@ -327,10 +333,9 @@ def main() -> int:
             "q": args.q,
             "n": args.n,
             "frontier_depth": args.frontier_depth,
-            "workers": args.workers,
+            "pivots": args.pivots,
             "sample": args.sample,
             "seed": args.seed,
-            "report_seconds": args.report_seconds,
             "binary_sha256": sha256_file(binary),
             "driver_sha256": sha256_file(driver),
         }
@@ -353,7 +358,7 @@ def main() -> int:
         if output.exists():
             raise SystemExit(f"refusing to overwrite existing output directory: {output}")
         (output / "units").mkdir(parents=True)
-        prefixes, node_vector = create_frontier(binary, args.q, args.n, args.frontier_depth, output)
+        prefixes, node_vector = create_frontier(binary, args.q, args.n, args.frontier_depth, output, pivots=args.pivots)
         units = select_units(prefixes, args.sample, args.seed)
         write_units(output / "units.tsv", units)
         manifest = {
@@ -362,6 +367,7 @@ def main() -> int:
             "q": args.q,
             "n": args.n,
             "frontier_depth": args.frontier_depth,
+            "pivots": args.pivots,
             "frontier_size": len(prefixes),
             "workers": args.workers,
             "sample": args.sample,
@@ -412,6 +418,7 @@ def main() -> int:
                 int(progress.get(str(unit["unit_id"]), {}).get("attempt", 1))
                 + (1 if str(unit["unit_id"]) in progress else 0),
                 args.report_seconds,
+                pivots=bool(manifest.get("pivots")),
             ): unit
             for unit in pending
         }

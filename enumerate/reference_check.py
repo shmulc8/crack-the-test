@@ -10,6 +10,7 @@ It also checks that split runs are disjoint and their union is complete.
 from __future__ import annotations
 
 import argparse
+import functools
 import itertools
 import re
 import subprocess
@@ -61,6 +62,42 @@ def canonical_form(types: tuple[int, ...], q: int) -> tuple[int, ...]:
             image = tuple(sorted(permute_type(type_id, permutation) for type_id in translated))
             if image < best:
                 best = image
+    return best
+
+
+@functools.lru_cache(maxsize=None)
+def pivot_transforms(q: int) -> list[list[int]]:
+    """Every distinct O(q,Z)=(Z_2)^q x| S_q action on the normalized type set.
+
+    A type encodes a length-q +/-1 column with row 0 pinned to +1. Applying a
+    row permutation and row sign-flips, then renormalizing each column so row 0
+    is +1 again, maps the type set to itself. This is the full group that
+    enum.c's --pivots quotients by (the baseline canonical_form above only uses
+    the row-0 stabilizer: translations and S_{q-1}). Each transform is a table
+    mapping type_id -> type_id; duplicates are collapsed.
+    """
+    size = 1 << (q - 1)
+    columns = [column(type_id, q) for type_id in range(size)]
+    tables: set[tuple[int, ...]] = set()
+    for permutation in itertools.permutations(range(q)):
+        for sign_mask in range(1 << q):
+            table = []
+            for value in columns:
+                flipped = [(-1 if (sign_mask >> i) & 1 else 1) * value[permutation[i]] for i in range(q)]
+                if flipped[0] == -1:
+                    flipped = [-entry for entry in flipped]
+                table.append(sum(1 << j for j in range(q - 1) if flipped[j + 1] == -1))
+            tables.add(tuple(table))
+    return [list(table) for table in tables]
+
+
+def canonical_form_pivots(types: tuple[int, ...], q: int) -> tuple[int, ...]:
+    """Whole-set orbit minimum under the full O(q,Z) row group (row pivoting)."""
+    best = tuple(sorted(types))
+    for table in pivot_transforms(q):
+        image = tuple(sorted(table[type_id] for type_id in types))
+        if image < best:
+            best = image
     return best
 
 
@@ -140,6 +177,13 @@ def main() -> int:
     union = set().union(*parts)
     compare("partition union 5x6", expected_canonical, union)
     print(f"partition 5x6: disjoint and complete ({[len(part) for part in parts]})")
+
+    for q, n in cases:
+        expected_pivots = {canonical_form_pivots(solution, q) for solution in references[q, n]}
+        pivoted = run_enum(binary, q, n, ["--pivots", "--canondepth", str(n)])
+        compare(f"pivots {q}x{n}", expected_pivots, pivoted)
+        print(f"pivots {q}x{n}: exact O(q,Z)-orbit match ({len(pivoted)} representatives)")
+
     print("REFERENCE CHECK PASSED")
     return 0
 

@@ -27,6 +27,7 @@ struct Config {
     split_depth: usize,
     canon_depth: usize,
     max_solutions: u64,
+    use_pivots: bool,
 }
 
 impl Config {
@@ -34,7 +35,7 @@ impl Config {
         let arguments: Vec<String> = env::args().collect();
         if arguments.len() < 3 {
             return Err(format!(
-                "usage: {} q n [--split N --part B] [--maxsol K] [--splitdepth D] [--canondepth D]",
+                "usage: {} q n [--split N --part B] [--maxsol K] [--splitdepth D] [--canondepth D] [--pivots|--no-pivots]",
                 arguments.first().map_or("enum-rust", String::as_str)
             ));
         }
@@ -49,15 +50,29 @@ impl Config {
             split_depth: 5,
             canon_depth: n.min(8),
             max_solutions: 3,
+            use_pivots: false,
         };
 
         let mut index = 3;
         while index < arguments.len() {
-            let flag = &arguments[index];
+            let flag = arguments[index].as_str();
+            match flag {
+                "--pivots" => {
+                    config.use_pivots = true;
+                    index += 1;
+                    continue;
+                }
+                "--no-pivots" => {
+                    config.use_pivots = false;
+                    index += 1;
+                    continue;
+                }
+                _ => {}
+            }
             let value = arguments
                 .get(index + 1)
                 .ok_or_else(|| format!("missing value for {flag}"))?;
-            match flag.as_str() {
+            match flag {
                 "--split" => config.split = parse_u64(flag, value)?,
                 "--part" => config.part = parse_u64(flag, value)?,
                 "--maxsol" => config.max_solutions = parse_u64(flag, value)?,
@@ -177,6 +192,7 @@ struct Search {
     type_count: usize,
     deltas: [i64; MAX_TYPES],
     permutation_table: Vec<u8>,
+    pivot_table: Vec<u8>,
     sums: Vec<u64>,
     tables: Vec<HashLayer>,
     prefix: [u8; MAX_N],
@@ -205,6 +221,7 @@ impl Search {
         }
 
         let permutation_table = permutation_maps(config.q - 1, type_count);
+        let pivot_table = pivot_maps(config.q, type_count);
         let sum_capacity = 1usize
             .checked_shl(config.n as u32)
             .ok_or_else(|| "subset-sum allocation overflow".to_string())?;
@@ -218,6 +235,7 @@ impl Search {
             type_count,
             deltas,
             permutation_table,
+            pivot_table,
             sums: vec![0; sum_capacity],
             tables,
             prefix: [0; MAX_N],
@@ -317,7 +335,9 @@ impl Search {
                 let (accepted, skips) = canonical_prefix(
                     &self.prefix[..=depth],
                     &self.permutation_table,
+                    &self.pivot_table,
                     self.type_count,
+                    self.config.use_pivots,
                 );
                 self.canonical_skips += skips;
                 if !accepted {
@@ -374,6 +394,46 @@ fn permutation_maps(bit_count: usize, type_count: usize) -> Vec<u8> {
     output
 }
 
+/// Row-pivoting maps for the full signed row group O(q,Z) = (Z_2)^q x| S_q.
+///
+/// Pivot `R` re-selects row `R` as the normalized reference row: the returned
+/// table maps each type (a normalized column with row 0 pinned to +1) to its
+/// image after moving row `R` into the row-0 slot. Pivot 0 is the identity, so
+/// the `q` maps together are exactly what enum.c's `pivottab` applies. Each map
+/// is an invertible affine map over GF(2), hence a permutation of the type set,
+/// and preserves detectingness, so widening `canonical_prefix` to loop over
+/// them only strengthens pruning. See ENUMERATION_PROOF.md section 4.
+fn pivot_maps(q: usize, type_count: usize) -> Vec<u8> {
+    let bit_count = q - 1;
+    let mut output = Vec::with_capacity(q * type_count);
+    for type_id in 0..type_count {
+        output.push(type_id as u8);
+    }
+    for reference in 1..q {
+        let reference_bit = reference - 1;
+        for type_id in 0..type_count {
+            let base = (type_id >> reference_bit) & 1;
+            let mut image = 0usize;
+            let mut out_bit = 0;
+            if base != 0 {
+                image |= 1 << out_bit;
+            }
+            out_bit += 1;
+            for other in 0..bit_count {
+                if other == reference_bit {
+                    continue;
+                }
+                if base ^ ((type_id >> other) & 1) != 0 {
+                    image |= 1 << out_bit;
+                }
+                out_bit += 1;
+            }
+            output.push(image as u8);
+        }
+    }
+    output
+}
+
 #[inline(always)]
 fn insertion_sort(values: &mut [u8]) {
     for index in 1..values.len() {
@@ -387,44 +447,59 @@ fn insertion_sort(values: &mut [u8]) {
     }
 }
 
-fn canonical_prefix(prefix: &[u8], permutation_table: &[u8], type_count: usize) -> (bool, u64) {
+fn canonical_prefix(
+    prefix: &[u8],
+    permutation_table: &[u8],
+    pivot_table: &[u8],
+    type_count: usize,
+    use_pivots: bool,
+) -> (bool, u64) {
     let mut lower_bounds = [0u8; MAX_N];
     let mut image = [0u8; MAX_N];
+    let mut pivoted = [0u8; MAX_N];
     let mut skipped = 0u64;
 
-    for &translation in prefix {
+    let pivot_count = if use_pivots { pivot_table.len() / type_count } else { 1 };
+    for pivot in pivot_table.chunks_exact(type_count).take(pivot_count) {
         for (index, &type_id) in prefix.iter().enumerate() {
-            let weight = (type_id ^ translation).count_ones();
-            lower_bounds[index] = ((1u16 << weight) - 1) as u8;
+            pivoted[index] = pivot[type_id as usize];
         }
-        insertion_sort(&mut lower_bounds[..prefix.len()]);
+        let pivoted = &pivoted[..prefix.len()];
 
-        let mut could_threaten = false;
-        for index in 0..prefix.len() {
-            if lower_bounds[index] < prefix[index] {
-                could_threaten = true;
-                break;
+        for &translation in pivoted {
+            for (index, &type_id) in pivoted.iter().enumerate() {
+                let weight = (type_id ^ translation).count_ones();
+                lower_bounds[index] = ((1u16 << weight) - 1) as u8;
             }
-            if lower_bounds[index] > prefix[index] {
-                break;
-            }
-        }
-        if !could_threaten {
-            skipped += 1;
-            continue;
-        }
+            insertion_sort(&mut lower_bounds[..prefix.len()]);
 
-        for permutation in permutation_table.chunks_exact(type_count) {
-            for (index, &type_id) in prefix.iter().enumerate() {
-                image[index] = permutation[(type_id ^ translation) as usize];
-            }
-            insertion_sort(&mut image[..prefix.len()]);
+            let mut could_threaten = false;
             for index in 0..prefix.len() {
-                if image[index] < prefix[index] {
-                    return (false, skipped);
-                }
-                if image[index] > prefix[index] {
+                if lower_bounds[index] < prefix[index] {
+                    could_threaten = true;
                     break;
+                }
+                if lower_bounds[index] > prefix[index] {
+                    break;
+                }
+            }
+            if !could_threaten {
+                skipped += 1;
+                continue;
+            }
+
+            for permutation in permutation_table.chunks_exact(type_count) {
+                for (index, &type_id) in pivoted.iter().enumerate() {
+                    image[index] = permutation[(type_id ^ translation) as usize];
+                }
+                insertion_sort(&mut image[..prefix.len()]);
+                for index in 0..prefix.len() {
+                    if image[index] < prefix[index] {
+                        return (false, skipped);
+                    }
+                    if image[index] > prefix[index] {
+                        break;
+                    }
                 }
             }
         }
@@ -436,7 +511,7 @@ fn execute() -> Result<(), String> {
     let config = Config::parse()?;
     let mut search = Search::new(config)?;
     println!(
-        "rust q={} n={}: {} types, {} perms, split {}/{} (depth {}), canon<={}",
+        "rust q={} n={}: {} types, {} perms, split {}/{} (depth {}), canon<={}{}",
         config.q,
         config.n,
         search.type_count,
@@ -444,7 +519,8 @@ fn execute() -> Result<(), String> {
         config.part,
         config.split,
         config.split_depth,
-        config.canon_depth
+        config.canon_depth,
+        if config.use_pivots { ", pivots=on" } else { "" }
     );
     let started = Instant::now();
     search.run()?;
@@ -499,7 +575,45 @@ mod tests {
     #[test]
     fn canonicalization_accepts_the_orbit_minimum() {
         let maps = permutation_maps(3, 8);
-        assert_eq!(canonical_prefix(&[0, 1, 2, 4], &maps, 8).0, true);
-        assert_eq!(canonical_prefix(&[0, 1, 2, 6], &maps, 8).0, false);
+        let pivots = pivot_maps(4, 8);
+        assert_eq!(canonical_prefix(&[0, 1, 2, 4], &maps, &pivots, 8, false).0, true);
+        assert_eq!(canonical_prefix(&[0, 1, 2, 6], &maps, &pivots, 8, false).0, false);
+    }
+
+    #[test]
+    fn pivot_maps_are_permutations_with_identity_first() {
+        for q in 2..=MAX_Q {
+            let type_count = 1 << (q - 1);
+            let table = pivot_maps(q, type_count);
+            assert_eq!(table.len(), q * type_count);
+            for (pivot, map) in table.chunks_exact(type_count).enumerate() {
+                let mut seen = vec![false; type_count];
+                for &image in map {
+                    assert!((image as usize) < type_count);
+                    assert!(!seen[image as usize], "pivot {pivot} is not injective");
+                    seen[image as usize] = true;
+                }
+                if pivot == 0 {
+                    assert!(map.iter().enumerate().all(|(i, &image)| image as usize == i));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn pivots_never_accept_a_prefix_the_baseline_rejects() {
+        // Enlarging the group can only reject more prefixes, never fewer.
+        let maps = permutation_maps(4, 16);
+        let pivots = pivot_maps(5, 16);
+        for a in 1..16u8 {
+            for b in a + 1..16 {
+                let prefix = [0u8, a, b];
+                let baseline = canonical_prefix(&prefix, &maps, &pivots, 16, false).0;
+                let pivoted = canonical_prefix(&prefix, &maps, &pivots, 16, true).0;
+                if pivoted {
+                    assert!(baseline, "pivots accepted {prefix:?} but baseline rejected it");
+                }
+            }
+        }
     }
 }

@@ -127,6 +127,28 @@ The independent control computes whole-set canonical forms by brute force,
 without prefix pruning, and checks that the C program emits exactly those
 representatives for the complete small `5x6` instance.
 
+### Optional row pivoting (`--pivots`)
+
+`--pivots` enlarges the canonicalization group from the row-0 stabilizer above
+to the full signed row group `O(q,Z) = (Z_2)^q x| S_q`, by additionally
+allowing any row `R` to be pivoted into the row-0 position
+([`pivottab`](enum.c#L168-L185), applied in `canon_ok`). Every added map is a
+signed row permutation, which preserves detectingness, so the enlargement only
+strengthens pruning and cannot lose a solution orbit. Its soundness and
+completeness are checked directly: `reference_check.py` computes the `O(q,Z)`
+whole-set orbit representatives by brute force and confirms that `enum --pivots`
+emits exactly that set for the complete `3x4`, `4x4`, and `5x6` instances.
+
+The flag is left off the decisive `beta(Q14)`/`beta(Q15)` runs by choice, not
+distrust: those verdicts are already reachable with the smaller stabilizer and
+are cross-checked by the independent Rust enumerator, which implements no
+pivoting. Keeping the headline results on the minimal-symmetry path means their
+soundness rides on the simplest canonicalization and stays reproducible by a
+second, independent implementation. Row pivoting earns its place on the open
+cases where the baseline does not finish in reach -- such as the `q=9, n=16`
+frontier sampling -- and there the same-orbit guarantee above is what lets us
+trust its verdict.
+
 ## 5. Packed subset sums are exact for this run
 
 Each coordinate occupies one byte of a `uint64_t`. The empty sum starts at
