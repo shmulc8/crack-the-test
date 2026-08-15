@@ -151,18 +151,21 @@ trust its verdict.
 
 ## 5. Packed subset sums are exact for this run
 
-Each of the `q` coordinates occupies a fixed-width field of a `uint64_t`. The
-field width is eight bits for `q<=8` and seven bits for `q=9`, chosen at
-[enum.c#L350](enum.c#L350) so all `q` fields fit: `9*7 = 63 <= 64`. The empty
-sum starts at bias 64 in every field; each column contributes `+1` or `-1` to
-each coordinate, so every subset sum keeps each coordinate in `[64-n, 64+n]`.
+Each of the `q` coordinates occupies a fixed-width field of a `uint64_t`: eight
+bits for `q<=8` and seven bits for `q=9`, chosen at [enum.c#L350](enum.c#L350)
+so all nine fields fit (`9*7 = 63 <= 64`). The empty sum starts at bias 64 in
+every field; each column contributes `+1` or `-1` to each coordinate, so every
+subset sum keeps each coordinate in `[64-n, 64+n]`.
 
-For `n<=20` that interval is `[44, 84]`, which lies inside both `[0, 255]`
-(eight-bit fields) and `[0, 127]` (seven-bit fields). No coordinate ever
-reaches its field boundary, so ordinary 64-bit addition is exactly
-componentwise addition with no inter-field carry or borrow. The decisive
-`beta(Q14)`/`beta(Q15)` cases have `q=9`: nine seven-bit fields, coordinates in
-`[49, 79]` and `[48, 80]`; the `q=9, n=16` frontier stays in `[48, 80]`.
+The decisive lower-bound search is the `8x14` case: `q=8`, eight one-byte
+fields, coordinates in `[50, 78] ⊂ [0, 255]`. No coordinate reaches a field
+boundary, so ordinary 64-bit addition is exactly componentwise addition with no
+inter-field carry or borrow.
+
+The seven-bit `q=9` layout is used only where the code runs nine rows --
+verifying the `9x15`/`9x14` upper-bound certificate and the open `beta(Q16)`
+frontier extension, not the decisive lower bound. The bound holds there too: for
+`n<=20` a coordinate stays in `[44, 84] ⊂ [0, 127]`.
 
 The array has space for all `2^n` sums. A child writes its translated half at
 `sums[count..2*count-1]` on lines [214-215](enum.c#L214-L215); recursive calls
