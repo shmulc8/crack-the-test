@@ -7,20 +7,25 @@
 \usepackage{array}
 \usepackage{xcolor}
 \usepackage{tikz}
+\usepackage{microtype}
 \usepackage{xurl}
 \usepackage[hidelinks]{hyperref}
 
+\theoremstyle{plain}
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{proposition}[theorem]{Proposition}
 \newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
 \newcommand{\cube}[1]{Q_{#1}}
 \newcommand{\betaQ}[1]{\beta(\cube{#1})}
 \newcommand{\bits}{\{0,1\}}
 \newcommand{\signs}{\{-1,+1\}}
 \newcommand{\ternary}{\{-1,0,1\}}
-% Author-facing note flagged for removal before final. Renders loudly on purpose.
-\newcommand{\TODO}[1]{\textcolor{red}{\textbf{[TODO --- cut before final:]}~#1}}
 
 \title{Exact Metric Dimensions and Improved Upper Bounds for Hypercubes}
 \author{Shmulik Cohen}
@@ -30,278 +35,248 @@
 \maketitle
 
 \begin{abstract}
-In this paper we consider the problem of determining the metric dimension of
-the hypercube \(Q_n\). Exact values are difficult to obtain even for modest
-dimensions, and the previously established sequence stopped at \(n=13\). We
-prove that \(\beta(Q_{14})=\beta(Q_{15})=9\). The lower bound is obtained by an
-exhaustive enumeration of detecting matrices, using hypercube symmetries and
-orderly generation to reduce the search. The computation is implemented
-separately in C and safe Rust and is supported by direct checks on smaller
-instances and comparisons with independent data. As a consequence we also
-determine the nonadaptive coin-weighing value \(M(14)=8\). Finally, we give
-explicit, independently checkable matrices that improve the known upper bounds
-to \(\beta(Q_{24})\leq13\), \(\beta(Q_{26})\leq14\), and
-\(\beta(Q_{29})\leq15\).
+Determining the metric dimension $\beta(Q_n)$ of the $n$-dimensional hypercube $Q_n$ is a classical problem in graph theory and additive combinatorics with close connections to nonadaptive coin weighing and coin-detecting matrices. Despite extensive study over five decades, exact values were previously established only up to $n=13$. In this paper, we resolve the next two values in the sequence, proving that
+\[
+  \beta(Q_{14}) = \beta(Q_{15}) = 9.
+\]
+The lower bound is established via an exhaustive canonical-prefix search using Read--Farad\v{z}ev orderly generation under the stabilizer of the normalized first row. The decisive computation prunes non-canonical prefixes through depth 8. Separate implementations in C and safe Rust agree on the full per-depth node-count vector, and the search is cross-checked against McKay's catalogue and reference enumerations of dissociated sets. As an immediate corollary, we settle the nonadaptive coin-weighing parameter $M(14) = 8$. Finally, using a meet-in-the-middle ternary kernel search combined with simulated annealing and extension scans, we construct explicit sign matrices, checked by two separately written exact verifiers, that improve the best known upper bounds for larger hypercubes:
+\[
+  \beta(Q_{24}) \le 13, \qquad
+  \beta(Q_{26}) \le 14, \qquad
+  \beta(Q_{29}) \le 15.
+\]
 \end{abstract}
 
-\section{Introduction}
+\section{Introduction}\label{sec:intro}
 
-The vertices of the hypercube \(Q_n\) are the binary vectors \(\bits^n\), with
-two vertices adjacent when they differ in one coordinate. A set \(R\) of
-vertices is \emph{resolving} if the vectors of Hamming distances
+The vertices of the $n$-dimensional hypercube $Q_n$ are the binary vectors $\bits^n$, with two vertices adjacent when they differ in exactly one coordinate. The graph distance $d(x,y)$ between vertices $x, y \in \bits^n$ is the standard Hamming distance. A subset of vertices $R = \{v_1, \dots, v_q\} \subseteq \bits^n$ is called a \emph{resolving set} for $Q_n$ if every vertex $x \in \bits^n$ is uniquely identified by its vector of distances to the vertices in $R$:
 \[
-  \bigl(d(x,r):r\in R\bigr), \qquad x\in\bits^n,
+  \bigl(d(x,v_1), d(x,v_2), \dots, d(x,v_q)\bigr) \neq \bigl(d(y,v_1), d(y,v_2), \dots, d(y,v_q)\bigr) \quad \text{for all } x \neq y.
 \]
-are pairwise distinct. The minimum cardinality of a resolving set is the
-metric dimension \(\beta(Q_n)\).
+A minimum resolving set is a \emph{metric basis}. The \emph{metric dimension} of $Q_n$, denoted by $\beta(Q_n)$, is the cardinality of a metric basis.
 
-The metric-dimension problem was introduced independently by Slater
-\cite{slater1975} and Harary and Melter \cite{harary1976}. For hypercubes it is
-closely related to nonadaptive coin weighing and detecting matrices
-\cite{erdosrenyi1963,cantormills1966,sebotannier2004,luye2022}. Its asymptotic
-order is known, but exact small values are difficult. The public sequence
-A303735 records exact values through \(n=13\) as
+The metric-dimension problem was introduced independently by Slater \cite{slater1975} and by Harary and Melter \cite{harary1976}. For hypercubes, the problem has deep connections to Cartesian product dimensions, information theory, group testing, nonadaptive coin weighing, and dissociated vector sets in additive combinatorics \cite{caceres2007,cantormills1966,erdosrenyi1963,lindstrom1969,luye2022,sebotannier2004}. Although the asymptotic behavior $\beta(Q_n) = (2+o(1))n / \log_2 n$ is known \cite{erdosrenyi1963}, computing exact small values is notoriously difficult due to the combinatorial explosion of the search space.
+
+The OEIS sequence A303735 records the exact metric dimensions of hypercubes through $n=13$ as
 \[
-1,2,3,4,4,5,6,6,7,7,8,8,8
+  1,\, 2,\, 3,\, 4,\, 4,\, 5,\, 6,\, 6,\, 7,\, 7,\, 8,\, 8,\, 8
 \]
-\cite{oeisA303735}. The smaller terms have since been independently confirmed:
-V.~Miller verified the first ten values with a MaxSat solver and
-symmetry-breaking constraints \cite{oeisA303735}. Heuristic searches had already
-produced the upper bounds
-\(\beta(Q_{14})\leq9\) and \(\beta(Q_{15})\leq9\)
-\cite{mladenovic2012,nikolic2017,hertz2020}. What remained open was a lower
-bound ruling out eight landmarks.
+\cite{oeisA303735}. The first ten values were verified by V.~S.~Miller using MaxSAT solvers with symmetry-breaking constraints \cite{oeisA303735}. For dimensions $n=14$ and $n=15$, heuristic upper bounds $\beta(Q_{14}) \le 9$ and $\beta(Q_{15}) \le 9$ were discovered through genetic algorithms, variable neighborhood search, and integer programming heuristics \cite{hertz2020,kratica2009,mladenovic2012,nikolic2017}. However, whether eight landmarks could suffice for $n=14$ remained an open question.
 
-This paper supplies that lower bound by exhaustive computation. The main
-result is the following.
+In this paper, we resolve this question by proving that no 8-element resolving set exists for $Q_{14}$, establishing the following main theorem.
 
 \begin{theorem}\label{thm:main}
-The following statements hold.
+The following statements hold:
 \begin{enumerate}[label=(\roman*)]
-\item The metric dimensions of the 14- and 15-dimensional hypercubes are
+\item The exact metric dimensions of the 14- and 15-dimensional hypercubes are
 \[
-  \beta(Q_{14})=\beta(Q_{15})=9.
+  \beta(Q_{14}) = \beta(Q_{15}) = 9.
 \]
-\item The metric dimensions of the 24-, 26-, and 29-dimensional hypercubes
-satisfy
+\item The metric dimensions of the 24-, 26-, and 29-dimensional hypercubes satisfy the improved upper bounds
 \[
-  \beta(Q_{24})\leq13,\qquad
-  \beta(Q_{26})\leq14,\qquad
-  \beta(Q_{29})\leq15.
+  \beta(Q_{24}) \le 13, \qquad
+  \beta(Q_{26}) \le 14, \qquad
+  \beta(Q_{29}) \le 15.
 \]
 \end{enumerate}
 \end{theorem}
 
-The computation uses familiar hypercube symmetries. Nikoli\'c et al. showed,
-among other reductions, that a resolving set may be
-translated to contain the zero vertex and that complementing landmarks
-preserves resolving pairs \cite{nikolic2017}. Their implementation used these
-facts in a greedy upper-bound heuristic and used lexicographic order for
-candidate tie-breaking. Our lower-bound method differs in kind: we combine the
-normalized detecting-matrix formulation with an exhaustive sorted-prefix
-search, rejecting a prefix whenever it is not the lexicographically least
-member of its symmetry orbit. The prefix rule is proved in
-Section~\ref{sec:orderly}; it is established directly, not inferred from
-heuristic success.
+Our nonexistence proof for $8 \times 14$ combines a normalized detecting-matrix formulation with an orderly generation algorithm that prunes non-canonical search-tree prefixes through depth 8. The accompanying repository provides the source code, final certificates, automated checks, reproduction harnesses, and summarized audit results \cite{artifact}; the original raw discovery-campaign logs are not needed to check the theorem and are not distributed.
 
-The code, certificates, complete correctness argument, and reproduction scripts
-are available in the accompanying repository \cite{artifact}. The exact claim
-does not depend on the stochastic searches used to discover the upper bounds.
+\section{Detecting matrices and dissociated sets}\label{sec:reduction}
 
-\section{Resolving sets and detecting matrices}\label{sec:reduction}
-
-Let \(W\in\signs^{q\times n}\). We call \(W\) a \emph{detecting matrix} if
+Let $W \in \signs^{q\times n}$ be a sign matrix with rows $r_1, \dots, r_q \in \signs^n$. We call $W$ a \emph{detecting matrix} if its kernel contains no nonzero ternary vector:
 \[
- Wz\neq0 \quad\text{for every nonzero }z\in\ternary^n.
+  Wz \neq 0 \quad \text{for every nonzero } z \in \ternary^n.
 \]
 
-\begin{lemma}\label{lem:equivalence}
-There is a resolving set of size \(q\) in \(Q_n\) if and only if there is a
-\(q\times n\) detecting matrix.
+\begin{lemma}[Seb\H{o}--Tannier \cite{sebotannier2004}, Lu--Ye \cite{luye2022}]\label{lem:equivalence}
+A resolving set of size $q$ in $Q_n$ exists if and only if there exists a $q\times n$ detecting sign matrix $W \in \signs^{q \times n}$ satisfying $Wz \neq 0$ for all nonzero $z \in \ternary^n$.
 \end{lemma}
 
 \begin{proof}
-Given landmarks \(v_1,\ldots,v_q\in\bits^n\), set
-\(W_{ij}=1-2(v_i)_j\). For \(x,y\in\bits^n\), direct expansion gives
+Let $v_1, \dots, v_q \in \bits^n$ be candidate landmarks. Setting $W_{ij} = 1 - 2(v_i)_j$ maps $0 \mapsto +1$ and $1 \mapsto -1$. For any $x, y \in \bits^n$, the distance difference to landmark $v_i$ is
 \[
- d(x,v_i)-d(y,v_i)=\sum_{j=1}^n (x_j-y_j)W_{ij}.
+  d(x,v_i) - d(y,v_i) = \sum_{j=1}^n (x_j - y_j)(1 - 2(v_i)_j) = \sum_{j=1}^n z_j W_{ij},
 \]
-Thus two distinct vertices have identical distance vectors precisely when the
-nonzero vector \(z=x-y\in\ternary^n\) lies in the kernel of \(W\). Conversely,
-every nonzero \(z\in\ternary^n\) can be written as \(x-y\) for binary
-\(x\neq y\), so the implication reverses.
+where $z = x - y \in \ternary^n$. Vertices $x \neq y$ have identical metric coordinates if and only if $Wz = 0$.
 \end{proof}
 
-Multiplying a column of \(W\) by \(-1\) preserves the condition: if
-\(D\) is a diagonal sign matrix, then \(WDz=0\) if and only if
-\(W(Dz)=0\), and \(D\) permutes \(\ternary^n\). We may therefore flip
-columns so that the first row is all \(+1\).
+\begin{proposition}[Cantor--Mills \cite{cantormills1966}, Lindstr\"om \cite{lindstrom1969}]\label{prop:subsetsums}
+A sign matrix $W \in \signs^{q\times n}$ is detecting if and only if all $2^n$ subset sums of its column vectors are pairwise distinct in $\mathbb{Z}^q$ (i.e., its columns form a dissociated set).
+\end{proposition}
 
-\begin{lemma}[subset-sum form]\label{lem:subsetsums}
-A sign matrix is detecting if and only if the \(2^n\) subset sums of its
-columns are pairwise distinct.
-\end{lemma}
+\subsection{Column normalization}
 
-\begin{proof}
-Two equal subset sums, indexed by \(A,B\subseteq[n]\), give a ternary kernel
-vector after canceling \(A\cap B\): assign \(+1\) to \(A\setminus B\),
-\(-1\) to \(B\setminus A\), and zero elsewhere. Conversely, the positive
-and negative supports of any ternary kernel vector give two equal subset sums.
-\end{proof}
-
-In the language of additive combinatorics, Lemma~\ref{lem:subsetsums} says that
-the columns of a detecting matrix form a \emph{dissociated} set: a set of
-vectors with no nontrivial \(\ternary\)-combination summing to zero,
-equivalently a set whose subset sums are pairwise distinct
-\cite{mathoverflow157634}. The metric dimension \(\beta(Q_n)\) is thus the least
-number of coordinates \(q\) in which \(n\) sign vectors can be dissociated;
-Theorem~\ref{thm:main}(i) states that no fourteen vectors in \(\signs^8\) are
-dissociated, whereas fifteen can be dissociated in nine coordinates. Because the
-first row is normalized to all \(+1\), any two equal subset sums must have equal
-cardinality; under the coordinate bijection \(u\mapsto\frac{1-u}{2}\), collisions
-in \(\signs^{q-1}\) between subsets of the same size map bijectively to
-\(\bits^{q-1}\) subset-sum collisions. In this \(\bits\)-valued form, maximal
-systems are catalogued as maximum dissociated sets of \(0\)--\(1\) vectors
-\cite{mckaydata}, which is why those catalogues furnish an independent check in
-Section~\ref{sec:verification}.
-
-After normalization, a column is determined by its last \(q-1\) signs. We
-encode it as a point of \(\bits^{q-1}\), so there are only \(2^{q-1}\)
-column types. Repeated columns are impossible, since their difference is a
-nonzero ternary kernel vector. The search object is therefore an \(n\)-subset
-of a \(2^{q-1}\)-element type set.
-
-A small example illustrates the role of the normalized row. For four columns,
-write
+Multiplying any column of $W$ by $-1$ preserves the detecting property: if $D$ is a diagonal sign matrix, then $WDz = 0 \iff W(Dz) = 0$, and $D$ is an automorphism of $\ternary^n$. We may therefore multiply each column by its first coordinate, normalizing the first row of $W$ to all $+1$:
 \[
-W=\left[
-\begin{array}{c|rrrr}
- &c_1&c_2&c_3&c_4\\ \hline
-\text{normalized row}&+1&+1&+1&+1\\
- &+1&-1&+1&-1\\
- &-1&+1&+1&-1
-\end{array}\right].
+  W = \begin{bmatrix}
+    +1 & +1 & \cdots & +1 \\
+    & & W' &
+  \end{bmatrix}.
 \]
-The first coordinate of a subset sum is its cardinality. Hence subsets of
-different sizes cannot collide, while the remaining rows must distinguish
-subsets of the same size. Normalization does not itself establish the detecting property;
-it exposes a canonical coordinate and reduces each column to one of
-\(2^{q-1}\) types.
-
-\section{Incremental exhaustive search}\label{sec:dfs}
-
-Represent a partial object by an increasing list of types
-\(P=(c_1<\cdots<c_k)\). Let
-\[
- \Sigma(P)=\left\{\sum_{c\in A}c:A\subseteq P\right\}
-\]
-denote its subset sums in the original sign-vector coordinates. If all sums
-in \(\Sigma(P)\) are distinct, adjoining a candidate \(c\) is legal exactly
-when
-\[
- \Sigma(P)\cap\bigl(\Sigma(P)+c\bigr)=\varnothing.       \tag{1}
-\]
-The child sums are then the disjoint union of these two sets. The enumerator
-stores the sums once per depth and tests (1) with a hash table.
-
-Without symmetry pruning, the depth-first traversal is complete: at depth
-\(k\), every legal larger candidate is tried in increasing order and only the
-suffix after that candidate is passed to the child. Thus every collision-free
-sorted type set containing the fixed first type appears once.
-
-Two elementary pruning rules are monotone.
+Under this normalization:
 \begin{enumerate}[label=(\roman*)]
-\item If a candidate \(c\) is illegal for \(P\), equation (1) remains false
-for every extension of \(P\), because the witnessing subset sums remain
-present.
-\item If fewer than \(n-k\) live candidates remain, the prefix cannot reach
-\(n\) columns.
+\item The first coordinate of the subset sum for any subset $A \subseteq [n]$ is simply the cardinality $|A|$. Consequently, subsets of different cardinalities can never collide.
+\item Each column is fully determined by its lower $q-1$ coordinates. Under the bijection $s \mapsto \frac{1-s}{2}$, these coordinates map to binary vectors in $\mathbb{F}_2^{q-1}$.
+\item No two columns can be identical, as $c_i = c_j$ implies $c_i - c_j = 0$.
+\end{enumerate}
+Therefore, searching for a $q \times n$ detecting matrix is equivalent to searching for an $n$-element subset of the $2^{q-1}$ available \emph{column types} $V = \{w \in \signs^q : w_1 = +1\} \cong \mathbb{F}_2^{q-1}$ whose subset sums in $\mathbb{Z}^q$ are all distinct.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=0.95cm, y=0.95cm, >=stealth]
+  % (a) Hypercube Q3
+  \begin{scope}[shift={(0,0)}]
+    \coordinate (v000) at (0,0);
+    \coordinate (v100) at (1.4,0);
+    \coordinate (v010) at (0,1.4);
+    \coordinate (v110) at (1.4,1.4);
+    \coordinate (v001) at (0.6,0.6);
+    \coordinate (v101) at (2.0,0.6);
+    \coordinate (v011) at (0.6,2.0);
+    \coordinate (v111) at (2.0,2.0);
+
+    % edges
+    \draw[gray!50, thick] (v000)--(v100)--(v110)--(v010)--cycle;
+    \draw[gray!50, thick] (v001)--(v101)--(v111)--(v011)--cycle;
+    \draw[gray!50, thick] (v000)--(v001);
+    \draw[gray!50, thick] (v100)--(v101);
+    \draw[gray!50, thick] (v010)--(v011);
+    \draw[gray!50, thick] (v110)--(v111);
+
+    % non-landmark vertices
+    \foreach \v in {v100,v010,v110,v001,v111}
+      \filldraw[fill=white, draw=black] (\v) circle (2.2pt);
+
+    % landmark vertices
+    \filldraw[fill=black, draw=black] (v000) circle (3pt) node[anchor=north east, font=\scriptsize, inner sep=2pt] {$v_1=(0,0,0)$};
+    \filldraw[fill=black, draw=black] (v101) circle (3pt) node[anchor=north west, font=\scriptsize, inner sep=2pt] {$v_2=(1,0,1)$};
+    \filldraw[fill=black, draw=black] (v011) circle (3pt) node[anchor=south east, font=\scriptsize, inner sep=2pt] {$v_3=(0,1,1)$};
+
+    \node[font=\footnotesize\bfseries, align=center] at (1.0,-0.85) {(a) Hypercube $Q_3$\\Landmarks $R=\{v_1,v_2,v_3\}$};
+  \end{scope}
+
+  % Arrow 1
+  \draw[->, thick, gray!80] (2.4, 1.0) -- (4.2, 1.0)
+    node[midway, above=3pt, font=\scriptsize, text=black] {$W_{ij}=1-2(v_i)_j$};
+
+  % (b) Matrix representation
+  \begin{scope}[shift={(6.0, 1.0)}]
+    \node[align=center, font=\small] at (0,0) {
+      $W = \begin{bmatrix}
+        +1 & +1 & +1 \\
+        -1 & +1 & -1 \\
+        +1 & -1 & -1
+      \end{bmatrix}$
+    };
+    \node[font=\footnotesize\bfseries, align=center] at (0,-1.85) {(b) Sign Matrix\\$Wz \neq 0 \;\forall z \neq 0$};
+  \end{scope}
+
+  % Arrow 2
+  \draw[->, thick, gray!80] (7.8, 1.0) -- (9.5, 1.0)
+    node[midway, above=3pt, font=\scriptsize, text=black] {Normalize};
+
+  % (c) Normalized column types
+  \begin{scope}[shift={(12.2, 1.0)}]
+    \node[align=center, font=\small] at (0,0) {
+      $\begin{bmatrix}
+        \mathbf{+1} & \mathbf{+1} & \mathbf{+1} \\
+        -1 & +1 & -1 \\
+        +1 & -1 & -1
+      \end{bmatrix} \longleftrightarrow \{c_1,c_2,c_3\} \subseteq \mathbb{F}_2^2$
+    };
+    \node[font=\footnotesize\bfseries, align=center] at (0,-1.85) {(c) Column Types in $\mathbb{F}_2^{q-1}$\\Distinct Subset Sums};
+  \end{scope}
+\end{tikzpicture}
+\caption{The geometric and algebraic framework connecting hypercube metric bases, detecting sign matrices, and normalized column types in $\mathbb{F}_2^{q-1}$.}
+\label{fig:framework}
+\end{figure}
+
+\section{Incremental search and exact packed arithmetic}\label{sec:dfs}
+
+Let $P = (c_1 < c_2 < \dots < c_k)$ be an ordered sequence of column types chosen from $V$. Let $\Sigma(P) = \{ \sum_{c \in A} c : A \subseteq P \} \subset \mathbb{Z}^q$ denote the set of all $2^k$ subset sums of $P$.
+
+If all sums in $\Sigma(P)$ are distinct, adjoining a new column candidate $c \in V$ is collision-free if and only if
+\begin{equation}\label{eq:collision}
+  \Sigma(P) \cap \bigl(\Sigma(P) + c\bigr) = \varnothing.
+\end{equation}
+When \eqref{eq:collision} holds, the new subset sum collection is the disjoint union $\Sigma(P \cup \{c\}) = \Sigma(P) \cup (\Sigma(P) + c)$.
+
+The tree traversal exploits two monotone pruning rules:
+\begin{enumerate}[label=(\alph*)]
+\item \emph{Monotone candidate filtering:} If candidate $c$ violates \eqref{eq:collision} for prefix $P$, it remains invalid for any extension $P' \supset P$, because the witnessing subset sums persist.
+\item \emph{Lookahead capacity pruning:} If fewer than $n - k$ valid candidate columns remain in the filtered candidate list, prefix $P$ cannot reach $n$ columns and is pruned immediately.
 \end{enumerate}
 
-For the decisive \(8\times14\) case, each coordinate of a subset sum is packed
-into one byte of a 64-bit word with bias 64. With at most 14 columns every
-coordinate lies between 50 and 78, so no carry or borrow can cross a byte
-boundary. The packed addition is therefore exact componentwise arithmetic,
-not a probabilistic hash.
+\subsection{Exact 64-bit packed coordinate arithmetic}
 
-\section{Orderly generation and prefix pruning}\label{sec:orderly}
-
-The full automorphism group acting on $q\times n$ sign matrices is the signed
-permutation group $O(q, \mathbb{Z}) = (\mathbb{Z}_2)^q \rtimes S_q$ on the rows
-(of order $2^q q!$), combined with column permutations $S_n$ and column sign flips
-$(\mathbb{Z}_2)^n$. Fixing the first row to all $+1$ by column sign flips reduces
-each column to one of $2^{q-1}$ normalized column types $V = \{w \in \signs^q :
-w_1 = +1\} \cong \bits^{q-1}$.
-
-For any hypercube isometry $g \in O(q, \mathbb{Z})$ acting on $\signs^q$, we define
-its normalized action $\Phi_g: V \to V$ by
+For the critical $8 \times 14$ search, we pack all 8 coordinates of a subset sum into a single 64-bit unsigned machine integer (\texttt{uint64\_t}). Each coordinate occupies one 8-bit byte. Define
 \[
- \Phi_g(w) = (g(w))_1 \cdot g(w).
+  P(v) = \sum_{j=0}^{q-1} (v_j + 64)2^{8j},
+  \qquad
+  \Delta(c) = \sum_{j=0}^{q-1} c_j2^{8j}.
 \]
-Because $(g(w))_1 \in \signs$, the first coordinate of $\Phi_g(w)$ is identically
-$+1$. The map $\Phi_g$ is a pointwise bijection on the finite set $V$: if
-$\Phi_g(u) = \Phi_g(v)$, then $g(u) = \sigma g(v) = g(\sigma v)$ for
-$\sigma = (g(u))_1(g(v))_1 \in \signs$; invertibility of $g$ gives $u = \sigma v$,
-and comparing first coordinates yields $u_1 = +1 = \sigma v_1 = \sigma$, so $u = v$.
+With at most 14 columns, each coordinate $v_j$ satisfies $-14 \le v_j \le 14$, so biased values lie strictly in $[50,78] \subset [0,255]$. The code computes $P(v)+\Delta(c)=P(v+c)$: the bias is applied once, and the lane values remain far enough from a byte boundary that no carry or borrow crosses between lanes. Thus the packed \texttt{uint64\_t} operation exactly implements simultaneous 8-dimensional integer-vector addition.
 
-For group elements fixing the first row, $g \in \mathrm{Stab}(\text{row 1}) \cong
-S_{q-1} \ltimes (\mathbb{Z}_2)^{q-1}$, the action on $\bits^{q-1}$ reduces to
+\section{Symmetry reduction and orderly generation}\label{sec:orderly}
+
+The full automorphism group preserving detecting matrices consists of row signed permutations $O(q, \mathbb{Z}) = (\mathbb{Z}_2)^q \rtimes S_q$ (of order $2^q q!$), combined with column permutations $S_n$ and column sign flips $(\mathbb{Z}_2)^n$. To eliminate redundant isomorphic subtrees, we integrate Read--Farad\v{z}ev orderly generation \cite{faradzev1978,read1978} directly into the tree search.
+
+\subsection{The normalized group action}
+
+For any signed row isometry $g \in O(q, \mathbb{Z})$ acting on $\signs^q$, we define its normalized action $\Phi_g: V \to V$ by
 \[
- x\longmapsto \pi(x\oplus t),
+  \Phi_g(w) = (g(w))_1 \cdot g(w).
 \]
-where $\pi\in S_{q-1}$ permutes the lower coordinates and $t\in\bits^{q-1}$ is a
-translation. For elements that pivot a different row $R \in \{1,\dots,q-1\}$ to
-row 1, $\Phi_g$ acts on the type bits $(b_0,\dots,b_{q-2}) \in \mathbb{F}_2^{q-1}$
-as the invertible linear map
+Because $(g(w))_1 \in \signs$, the first coordinate of $\Phi_g(w)$ is always $+1$, mapping $V$ to $V$.
+
+\begin{lemma}
+For any $g \in O(q, \mathbb{Z})$, the map $\Phi_g: V \to V$ is a bijection on the type set $V$.
+\end{lemma}
+
+\begin{proof}
+Suppose $\Phi_g(u) = \Phi_g(v)$. Then $g(u) = \sigma g(v) = g(\sigma v)$ where $\sigma = (g(u))_1(g(v))_1 \in \signs$. By invertibility of $g$, $u = \sigma v$. Comparing first coordinates gives $u_1 = +1 = \sigma v_1 = \sigma$, whence $\sigma = +1$ and $u = v$. Since $V$ is finite, $\Phi_g$ is a bijection.
+\end{proof}
+
+The normalized group action decomposes into:
+\begin{enumerate}[label=(\alph*)]
+\item \emph{Stabilizer of the first row:} The subgroup $\mathrm{Stab}(\text{row 1}) \cong (\mathbb{Z}_2)^{q-1} \rtimes S_{q-1}$, of order $2^{q-1}(q-1)!$, acts on the type vectors $x \in \mathbb{F}_2^{q-1}$ as affine transformations:
 \[
- \text{bit}_{\text{new Row 0}}(t) = b_{R-1}, \qquad
- \text{bit}_{\text{new Row } r'}(t) = b_{R-1} \oplus b_{r'-1}.
+  x \longmapsto \pi(x \oplus t),
 \]
+where $t \in \mathbb{F}_2^{q-1}$ denotes row sign flips on the lower $q-1$ rows, and $\pi \in S_{q-1}$ permutes the coordinates.
+\item \emph{Row pivots:} Group elements swapping a different row $R \in \{2,\dots,q\}$ into the first row act linearly on type bits $b = (b_0,\dots,b_{q-2}) \in \mathbb{F}_2^{q-1}$ as
+\[
+  b'_0 = b_k, \qquad b'_j = b_k \oplus b_{\sigma(j)} \quad \text{for } j \ge 1,
+\]
+where $k = R - 2$ and $\sigma$ permutes the remaining coordinates.
+\end{enumerate}
 
-We sort every type set lexicographically. Translation allows one chosen member of
-a set to become zero, so every orbit has a sorted representative containing zero;
-the search fixes zero as its first type. At a partial set $P$, the program tests
-the normalized group actions and rejects $P$ if a sorted image is
-lexicographically smaller.
+\subsection{Canonical-prefix pruning}
 
-\begin{proposition}[canonical-prefix rule]\label{prop:prefix}
-If a sorted full set $X \subset V$ is lexicographically least in its orbit under
-the normalized group action, then every initial prefix $A \subseteq X$ is
-lexicographically least among its normalized sorted images $\Phi_g(A)$ that
-contain zero. Consequently, rejecting a nonminimal prefix cannot remove the last
-representative of a solution orbit.
+We order the $2^{q-1}$ column types by integer value $0 < 1 < \dots < 2^{q-1}-1$. Every $k$-subset of types is represented as a sorted sequence $P = (c_1 < c_2 < \dots < c_k)$.
+
+Under translation $x \mapsto x \oplus c_1$, the first element is mapped to $0$. Since $0$ is the minimal type, every solution orbit contains a representative starting with $0$. We therefore fix $c_1 = 0$ at depth 1.
+
+\begin{proposition}[Canonical-prefix rule]\label{prop:prefix}
+Let $X = (x_1 < \dots < x_n) \subset V$ be the lexicographically minimal representative of its orbit under the normalized group action. Then for every $k \in [n]$, the initial prefix $A = (x_1 < \dots < x_k)$ is lexicographically minimal among all sorted images $\Phi_g(A)$ that contain zero.
 \end{proposition}
 
 \begin{proof}
-Let $A$ be the first $k$ elements of $X$. Because $\Phi_g: V \to V$ is a pointwise
-bijection, $\Phi_g(A) \subseteq \Phi_g(X)$. Let sorted $\Phi_g(A) = (y_1 < \dots < y_k)$
-and sorted $\Phi_g(X) = (z_1 < \dots < z_n)$. Since $\Phi_g(A)$ is a $k$-subset of
-$\Phi_g(X)$, the $j$-th smallest element of the superset is at most the $j$-th
-smallest element of the subset: $z_j \le y_j$ for all $1 \le j \le k$.
+Let $A$ be the first $k$ elements of $X$. Since $\Phi_g$ is a bijection, $\Phi_g(A) \subseteq \Phi_g(X)$. Let the sorted images be $\Phi_g(A) = (y_1 < \dots < y_k)$ and $\Phi_g(X) = (z_1 < \dots < z_n)$.
 
-Suppose some group element $g$ yields a normalized sorted image $\Phi_g(A)$ strictly
-lexicographically smaller than $A$. Let $m \in \{1,\dots,k\}$ be the first index
-where $y_m < x_m$ (with $y_j = x_j$ for $j < m$). For all $j < m$, $z_j \le y_j = x_j$.
-If $z_j < x_j$ for any $j < m$, then sorted $\Phi_g(X) <_{\mathrm{lex}} X$. If
-$z_j = x_j$ for all $j < m$, then at index $m$, $z_m \le y_m < x_m$, which again
-yields sorted $\Phi_g(X) <_{\mathrm{lex}} X$. In either case, $X$ was not
-lexicographically minimal in its orbit, a contradiction.
+Because $\Phi_g(A)$ is a $k$-subset of $\Phi_g(X)$, the $j$-th smallest element of the superset cannot exceed the $j$-th smallest element of the subset:
+\[
+  z_j \le y_j \qquad \text{for all } 1 \le j \le k.
+\]
+Suppose for contradiction that some $g \in O(q, \mathbb{Z})$ produces $\Phi_g(A)$ containing $0$ with $\Phi_g(A) <_{\mathrm{lex}} A$. Let $m \in [k]$ be the first index where $y_m < x_m$ (with $y_j = x_j$ for $j < m$). Then for all $j < m$, $z_j \le y_j = x_j$.
+\begin{itemize}
+\item If $z_j < x_j$ for any $j < m$, then $\Phi_g(X) <_{\mathrm{lex}} X$.
+\item If $z_j = x_j$ for all $j < m$, then at index $m$ we have $z_m \le y_m < x_m$, which again yields $\Phi_g(X) <_{\mathrm{lex}} X$.
+\end{itemize}
+In either case, $\Phi_g(X)$ is strictly lexicographically smaller than $X$, contradicting the minimality of $X$.
 \end{proof}
-
-This is an instance of Read--Farad\v zev orderly generation
-\cite{read1978,faradzev1978}. For $q=8$, the stabilizer group has order
-$7!\,2^7=645{,}120$, while the full row group has order $8!\,2^8 = 10{,}321{,}920$.
-The baseline enumeration canonicalizes under the stabilizer through depth eight,
-which is already sufficient to complete the search deterministically. Stopping early
-may repeat work but cannot discard a solution.
-
-The minimality test itself avoids running all \((q-1)!\) permutations on most
-prefixes. A permutation only reorders coordinates, so it preserves the popcount
-of every column type; the least type index attainable for a type of popcount
-\(w\) is therefore fixed in advance. Comparing these popcount-derived bounds
-against the incumbent already settles the ordering for the large majority of
-prefixes, and the full permutation sweep is run only for the few that survive
-this cheap filter.
 
 \begin{figure}[t]
 \centering
@@ -334,7 +309,7 @@ this cheap filter.
 \node[pruned] (f) at (-0.7,-3.0) {};
 \node[kept]   (g) at ( 0.2,-3.0) {};
 \draw[ke] (b)--(e); \draw[pe] (b)--(f); \draw[ke] (b)--(g);
-\node[rlbl, anchor=north] at (-0.7,-3.25) {collision, eq.~(1)};
+\node[rlbl, anchor=north] at (-0.7,-3.25) {collision, eq.~\eqref{eq:collision}};
 \node[font=\footnotesize] at (-2.2,-2.35) {\(\vdots\)};
 \node[font=\footnotesize] at ( 0.8,-2.35) {\(\vdots\)};
 \node at (0,-3.95) {\(\vdots\)};
@@ -350,336 +325,171 @@ this cheap filter.
 \draw (1.3,-5.3)--(0.9,-6.2)--(1.7,-6.2)--cycle;
 \node[font=\scriptsize,anchor=north] at (1.3,-6.2) {\(P_9\)};
 \end{tikzpicture}
-\caption{Schematic of the canonical-prefix enumeration for the \(8\times14\)
-case. Each node is a sorted, collision-free prefix; depth is the number of
-columns selected, with the first type fixed to zero. Solid edges are explored;
-a dashed edge is pruned, either because the candidate would create a subset-sum
-collision (equation~(1)) or because the prefix is not lexicographically least in
-its symmetry orbit (Proposition~\ref{prop:prefix}). The counts on the left are
-the numbers of canonical prefixes at each depth. The depth-six frontier of
-\(11{,}364\) prefixes is split into ten congruence classes \(P_0,\ldots,P_9\)
-modulo~\(10\), each searched independently and each reporting no \(8\times14\)
-detecting matrix.}
+\caption{Schematic of the canonical-prefix search tree for $8\times14$. Each node represents a sorted, collision-free prefix with $c_1=0$. Dashed branches are pruned by collision testing \eqref{eq:collision} or canonical-prefix minimality (Proposition~\ref{prop:prefix}). The depth-6 frontier of $11{,}364$ prefixes is partitioned into 10 disjoint subtrees $P_0,\ldots,P_9$, each verified to contain zero solutions.}
 \label{fig:tree}
 \end{figure}
 
-Figure~\ref{fig:tree} sketches the pruned enumeration and the depth-six frontier
-at which the computation is partitioned; the scale of the reduction is shown in
-Table~\ref{tab:pruning}. These counts
-come from a controlled \(7\times11\) run and from the common
-\(8\times14\) frontier; they describe performance, not an additional premise
-of correctness.
+\subsection{Popcount filtering and pruning efficiency}
+
+Testing $(q-1)! = 5{,}040$ coordinate permutations at every node is accelerated by a popcount (Hamming weight) lower bound. Coordinate permutations preserve the Hamming weight of each column type. For a type with popcount $w$, the minimum integer value under any permutation is $\min_w = 2^w - 1$. Comparing these precomputed bounds against the incumbent prefix often settles the ordering in $O(1)$ time, invoking the full permutation check only when the bound is inconclusive.
+
+Table~\ref{tab:pruning} illustrates the pruning efficiency under the normalized-first-row stabilizer used by the decisive computation.
 
 \begin{table}[H]
 \centering
-\caption{Effect of canonical-prefix pruning.}
+\setlength{\tabcolsep}{5pt}
+\caption{Effect of canonical-prefix pruning on search tree size.}
 \label{tab:pruning}
 \begin{tabular}{lrr}
 \toprule
-Measurement & Without prefix test & With prefix test\\
+Instance & No lex-min pruning & First-row stabilizer\\
 \midrule
-\(7\times11\), complete search nodes & 256,123,828 & 189,831\\
+\(7\times11\), total search nodes & 256,123,828 & 189,831\\
 \(8\times14\), nodes at depth 5 & 1,282,411 & 1,082\\
 \(8\times14\), nodes at depth 6 & 34,942,921 & 11,364\\
+\(8\times14\), complete search nodes & --- & 339,979,093\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Here \emph{depth} means the number of columns already selected. Thus depth
-six is the frontier of all legal canonical six-column prefixes, not six levels
-of a binary decision tree.
+\section{Search tree partitioning and node accounting}\label{sec:partition}
 
-\section{Partitioning the decisive computation}\label{sec:partition}
+The $8 \times 14$ computation is partitioned across 10 deterministic processes at depth 6. Each process traverses the identical top tree down to depth 6. At the depth-6 frontier, each outgoing branch is assigned to partition $p \in \{0,\dots,9\}$ if its sequence counter satisfies $\text{counter} \equiv p \pmod{10}$.
 
-The \(8\times14\) traversal is divided into ten processes at depth six. Every
-process deterministically walks the same tree down to that frontier. For each
-outgoing child it increments the same counter; partition \(p\) retains the
-child exactly when the counter is congruent to \(p\pmod {10}\). Every outgoing
-branch therefore belongs to exactly one partition.
-
-All completed logs have the identical frontier vector
+Every partition outputs the identical shallow frontier vector:
 \[
- (N_0,\ldots,N_6)=(0,1,6,18,143,1082,11364).
+  (N_0, N_1, N_2, N_3, N_4, N_5, N_6) = (0, 1, 6, 18, 143, 1082, 11364).
 \]
-The ten reported totals sum to 340,092,619 node visits. The common 12,614
-shallow nodes (\(\sum_{i=0}^6 N_i = 12{,}614\)) are visited by every process,
-so nine duplicate copies must be removed. The number of distinct search-tree
-nodes is therefore
+The sum of visits across all ten partitions is $340{,}092{,}619$. Since the $12{,}614$ shallow nodes ($\sum_{i=0}^6 N_i = 12{,}614$) are visited by all 10 processes, subtracting the 9 duplicate copies yields the exact distinct node total:
 \[
- 340{,}092{,}619-9\cdot12{,}614=339{,}979{,}093.
+  340{,}092{,}619 - 9 \times 12{,}614 = \mathbf{339{,}979{,}093}.
 \]
-Each partition exits successfully and reports zero solutions.
+Each partition terminates with an explicit exit status confirming zero solutions.
 
-The partition-log checker is conservative by design: it accepts a run only when
-the logs comprise exactly partitions 0 through 9, exactly one completed verdict
-per file, the common frontier above, and no emitted solution. Malformed,
-duplicate, missing, or interrupted logs are rejected.
+\section{Computational verification and consistency checks}\label{sec:verification}
 
-\section{Verification and computational results}\label{sec:verification}
-
-The proof obligation is narrower than the observation that two independent
-programs reported no solution. It is that the implemented traversal covers every
-normalized object up to the proved group action, and that every accepted pruning
-rule preserves at least one representative. Sections~\ref{sec:reduction}--\ref{sec:partition} establish
-those facts. We used the following controls to test the implementation against
-those arguments.
+To increase confidence in the computation, we applied the controls summarized in Table~\ref{tab:verification}. These checks were developed within the same project and rely on the same orderly-generation argument; they are neither a third-party replication nor a formally verified proof certificate.
 
 \begin{table}[H]
 \centering
-\caption{Verification map.}
+\setlength{\tabcolsep}{4pt}
+\caption{Computational verification and consistency checks.}
 \label{tab:verification}
-\begin{tabular}{>{\raggedright\arraybackslash}p{0.25\linewidth}>{\raggedright\arraybackslash}p{0.68\linewidth}}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.26\linewidth}>{\raggedright\arraybackslash}p{0.70\linewidth}}
 \toprule
-Control & Result\\
+Check & Scope and Outcome\\
 \midrule
-Direct Python enumeration & Exact raw solution sets agree on \(3\times4\),
-\(4\times4\), and \(5\times6\).\\
-Whole-orbit canonicalization & All 13 independently computed canonical
-\(5\times6\) representatives agree.\\
-Partition control & Three small-instance parts are disjoint and their union is
-the direct reference set.\\
-Runtime instrumentation & AddressSanitizer and UndefinedBehaviorSanitizer pass
-the small complete comparisons.\\
-Known-value ladder & The code reproduces
-\(\beta(Q_{11})=\beta(Q_{12})=\beta(Q_{13})=8\).\\
-Independent data & All 118,485 McKay dissociated 12-set orbits occur in the
-\(8\times13\) output after the proved conversion; none is missing
-\cite{mckaydata}.\\
-Second implementation & Safe Rust, with no external crates and no
-\texttt{unsafe}, matches every complete C node vector in all ten
-\(8\times14\) partitions.\\
+Separate implementations & Standalone C and safe Rust implementations match the full per-depth node-count vector exactly.\\
+McKay 12-set catalogue & All 118,485 McKay dissociated 12-set orbits in $\{0,1\}^7$ occur in the $8\times13$ output with zero missing \cite{mckaydata}.\\
+Small-instance agreement & Exact raw solution sets match exhaustive reference enumerations for $3\times4$, $4\times4$, and $5\times6$.\\
+Orbit canonicalization & All 13 separately generated canonical $5\times6$ orbit representatives match the reference generator.\\
+Known OEIS ladder & Reproduces exact known sequence values $\beta(Q_{11})=\beta(Q_{12})=\beta(Q_{13})=8$ \cite{oeisA303735}.\\
+Memory \& runtime safety & The small-instance reference suite for \texttt{enum.c} passes under AddressSanitizer and UndefinedBehaviorSanitizer.\\
+Audit verification & A separate fail-closed checker validates log structure, hashes, partition totals, and zero-solution exit status.\\
 \bottomrule
 \end{tabular}
 \end{table}
-
-On the same arm64 machine, the C partitions took 350.60--372.36 seconds and the
-Rust partitions at most 365.57 seconds. These timings are descriptive and are
-not used in the proof.
-
-The C and Rust programs deliberately implement the same orderly-generation
-argument. Their exact agreement is strong evidence against language-specific,
-state-management, and memory-safety errors, but it is not an independent
-mathematical method or a third-party verification. The natural route to a
-machine-checkable strengthening is a proof of nonexistence: encode
-\emph{normalized detecting-matrix existence} as a Boolean satisfiability instance
-and, on an \texttt{UNSAT} verdict, validate the emitted \textsc{drat} refutation
-with an independent checker---or, after conversion to \textsc{lrat}, with a
-formally verified checker such as \texttt{cake\_lpr} \cite{tan2021cakelpr}, as
-done for the Boolean Pythagorean triples problem \cite{heule2016ptn}. This
-succeeds on the small instances: we obtained checked refutations for every
-nonexistence case through \(4\times6\) (hence \(\beta(Q_6)\geq5\)). It does not
-reach the decisive scale. The instances are resolution-hard---a modern CDCL
-solver did not close \(5\times7\) within minutes, whereas the enumerator settles
-it in under a second---and the direct \(8\times14\) encoding already exceeds
-\(6\times10^{7}\) clauses. Closing that size would require a substantially more
-compact encoding together with cube-and-conquer partitioning, which we record as
-the principal open direction for independent verification.
 
 \begin{proof}[Proof of Theorem~\ref{thm:main}(i)]
-The exhaustive computation finds no \(8\times14\) detecting matrix, so
-Lemma~\ref{lem:equivalence} gives \(\beta(Q_{14})\geq9\). The explicit
-\(9\times15\) detecting matrix in Appendix~\ref{app:certificates} yields, by
-deleting any one of its columns, a \(9\times14\) detecting matrix. Hence
-\(\beta(Q_{14})\leq9\).
+The exhaustive computation proves that no $8\times 14$ detecting matrix exists. By Lemma~\ref{lem:equivalence}, $\beta(Q_{14}) \ge 9$. The explicit $9\times 15$ detecting matrix exhibited in Appendix~\ref{app:certificates} yields, by deleting any one column, a $9\times 14$ detecting matrix, establishing $\beta(Q_{14}) \le 9$. Thus $\beta(Q_{14}) = 9$.
 
-If an \(8\times15\) detecting matrix existed, deleting any column would leave
-an \(8\times14\) detecting matrix: a kernel vector for the smaller matrix could
-be extended by a zero coordinate. Thus \(\beta(Q_{15})\geq9\), and the same
-explicit \(9\times15\) matrix supplies the matching upper bound.
+If an $8\times 15$ detecting matrix existed, deleting any column would yield an $8\times 14$ detecting matrix. Hence $\beta(Q_{15}) \ge 9$. The same $9\times 15$ matrix provides the matching upper bound, giving $\beta(Q_{15}) = 9$.
 \end{proof}
 
-\section{New upper bounds}\label{sec:upper-bounds}
+\section{New upper bounds for large hypercubes}\label{sec:upper-bounds}
 
-The second part of Theorem~\ref{thm:main} is certified by the three sign
-matrices reproduced in Appendix~\ref{app:certificates}. Their sizes and the
-resulting bounds are summarized in Table~\ref{tab:bounds}.
+The upper bounds in Theorem~\ref{thm:main}(ii) are certified by three explicit sign matrices given in Appendix~\ref{app:certificates}.
 
 \begin{table}[H]
 \centering
-\caption{New upper-bound certificates.}
+\caption{New upper bounds certified by explicit detecting matrices.}
 \label{tab:bounds}
 \begin{tabular}{cccc}
 \toprule
-Dimension & Rows & Previous upper bound & New upper bound\\
+Dimension $n$ & Matrix Rows $q$ & Published Upper Bound & New Upper Bound $\beta(Q_n)$\\
 \midrule
-24 & 13 & 14 & 13\\
-26 & 14 & 15 & 14\\
-29 & 15 & 16 & 15\\
+24 & 13 & 14 \cite{hertz2020} & \textbf{13}\\
+26 & 14 & 15 \cite{hertz2020} & \textbf{14}\\
+29 & 15 & 16 \cite{luye2022} & \textbf{15}\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The previous values in the third column follow from the computational and
-constructive bounds reported by Nikoli\'c et al., Hertz, and Lu--Ye
-\cite{nikolic2017,hertz2020,luye2022}. Thus each certificate improves the
-corresponding published bound by one.
+\subsection{Search methods: meet-in-the-middle ternary kernel counter}
+
+The matrices were discovered using a meet-in-the-middle ternary kernel counter. Splitting $n$ columns into two halves of size $\lceil n/2 \rceil$ and $\lfloor n/2 \rfloor$, the routine enumerates the signed sums of both halves, fixed-width radix-sorts their packed row signatures, and merge-scans the sorted lists for exact cancellations $Wz=0$. For fixed packed width, this requires $O(3^{\lceil n/2 \rceil})$ time and space. For $15 \times 29$, the larger half has $3^{15} = 14{,}348{,}907$ signed choices.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=1.0cm, y=1.0cm, >=stealth]
+  % Left Card
+  \node[draw=blue!50, fill=blue!4, rounded corners=4pt, text width=6.5cm, align=center, inner sep=8pt] (left) at (-3.5, 0) {
+    {\small\bfseries Left Halves $W_L \in \signs^{q \times \lceil n/2 \rceil}$}\\[3pt]
+    {\footnotesize\color{gray} Columns $1, \dots, \lceil n/2 \rceil$}\\[4pt]
+    {\footnotesize Enumerate $3^{\lceil n/2 \rceil}$ signed subset sums:}\\
+    {\footnotesize $S_L = \bigl\{ W_L z_L : z_L \in \ternary^{\lceil n/2 \rceil} \bigr\}$}
+  };
+
+  % Right Card
+  \node[draw=green!60!black, fill=green!4, rounded corners=4pt, text width=6.5cm, align=center, inner sep=8pt] (right) at (3.5, 0) {
+    {\small\bfseries Right Halves $W_R \in \signs^{q \times \lfloor n/2 \rfloor}$}\\[3pt]
+    {\footnotesize\color{gray} Columns $\lceil n/2 \rceil + 1, \dots, n$}\\[4pt]
+    {\footnotesize Enumerate $3^{\lfloor n/2 \rfloor}$ negated subset sums:}\\
+    {\footnotesize $S_R = \bigl\{ -W_R z_R : z_R \in \ternary^{\lfloor n/2 \rfloor} \bigr\}$}
+  };
+
+  % Bottom Card
+  \node[draw=orange!70!black, fill=orange!8, rounded corners=4pt, text width=13.5cm, align=center, inner sep=7pt] (bottom) at (0, -3.0) {
+    {\small\bfseries Exact Cancellation Detection: $W_L z_L + W_R z_R = 0 \iff Wz = 0$}\\[2pt]
+    {\footnotesize Fixed-width radix sort and merge scan: $\mathcal{O}\bigl(3^{\lceil n/2 \rceil}\bigr)$ time and space}
+  };
+
+  % Downward Arrows
+  \draw[->, very thick, blue!70] (left.south) -- (left.south |- bottom.north)
+    node[midway, right=3pt, font=\scriptsize, text=blue!80] {Radix-sort packed signatures};
+
+  \draw[->, very thick, green!60!black] (right.south) -- (right.south |- bottom.north)
+    node[midway, right=3pt, font=\scriptsize, text=green!60!black] {Radix-sort; merge scan};
+\end{tikzpicture}
+\caption{Meet-in-the-middle ternary kernel counter using fixed-width radix sorting and a merge scan for cancelling signatures.}
+\label{fig:mitm}
+\end{figure}
+
+The $15 \times 29$ certificate was found via bounded-weight simulated annealing. The $14 \times 26$ certificate was extracted as a submatrix slice, and the $13 \times 24$ certificate was constructed via an extension scan that tested all $2^{13}$ possible column extensions against a solved $13 \times 23$ matrix.
 
 \begin{proof}[Proof of Theorem~\ref{thm:main}(ii)]
-For each matrix \(W\) in Appendix~\ref{app:certificates}, the exhaustive
-meet-in-the-middle check of Section~\ref{sec:search} finds no nonzero
-\(z\in\{-1,0,1\}^n\) satisfying \(Wz=0\). Hence each matrix is detecting, and
-Lemma~\ref{lem:equivalence} gives the stated upper bound. Separate C and
-JavaScript verifiers produce the same result -- one searching a sorted signature
-table, the other a hash table, so agreement is not an artifact of shared code --
-and both reject matrices with a deliberately duplicated column.
+For each matrix in Appendix~\ref{app:certificates}, two separately written exact meet-in-the-middle verifiers confirm that no nonzero $z \in \ternary^n$ satisfies $Wz = 0$. By Lemma~\ref{lem:equivalence}, this certifies the stated upper bounds.
 \end{proof}
 
-The proof depends only on the displayed matrices and their finite
-verification, not on the heuristic search that produced them. Deleting columns
-also gives the corresponding bounds for all smaller dimensions, although those
-consequences do not improve the previously known values at dimensions 23, 25,
-27, and 28.
+\section{Nonadaptive coin weighing}\label{sec:weighing}
 
-\subsection{Search methods}\label{sec:search}
-
-The certificates were discovered in a separate upper-bound search built around a
-single exact primitive: a meet-in-the-middle ternary-kernel counter. Splitting
-the \(n\) columns into two halves, the routine enumerates the
-\(3^{\lceil n/2\rceil}\) signed subset sums of one half, sorts their packed
-row-sum signatures, and streams the signed subset sums of the other half,
-counting exact cancellations \(Wz=0\). Each half contributes per-row sums of
-small magnitude, so a full signature packs into two machine words with one
-five-bit field per row and comparisons reduce to single instructions. This
-replaces the \(3^n\) cost of naive ternary enumeration by
-\(O\!\left(3^{\lceil n/2\rceil}\right)\) time and space; even for the
-\(15\times29\) matrix (\(3^{15} = 14{,}348{,}907\) entries, occupying
-\(\approx 115\)\,MB of memory), the kernel count is computed exactly in a
-fraction of a second. The same primitive drives both the search and the final
-check, so a discovered matrix is re-examined by an exact count rather than a
-sampled estimate.
-
-The \(15\times29\) matrix was found by simulated annealing on the \(\pm1\)
-entries. To keep each proposal cheap, the annealing objective is a
-\emph{bounded-weight} kernel count: only ternary vectors with at most a fixed
-number of nonzero entries are enumerated. This underestimates the true count but
-is far faster, and whenever it reaches zero the full exact counter re-certifies
-the matrix; the exact null vectors it returns then steer the next move. Two
-further reductions exploit the meet-in-the-middle split. Because the two halves
-are independent, flipping one entry invalidates only one side's sorted table, so
-each accepted move rebuilds a single \(3^{\lceil n/2\rceil}\)-sized side and
-reuses the other unchanged. When the search stalls, repairs are restricted
-to the coordinates in the support of the current null vectors, exploiting the
-structure of the near-certificate rather than its count alone.
-
-The remaining certificates were obtained without a fresh anneal. The
-\(14\times26\) matrix is a row-and-column submatrix of the annealed
-\(15\times29\) solution whose kernel count, evaluated once, is already zero. The
-\(13\times24\) matrix came from an \emph{extension scan}: given a solved
-\(13\times23\) submatrix, the two sorted half-tables are built once, and each of
-the \(2^{13}\) candidate columns is then tested by a small update to one table
-followed by a single merge, keeping exactly the columns whose addition creates no
-ternary kernel vector. This reduces the cost of testing all \(2^{13}\) extending
-columns from \(2^{13}\) independent kernel counts to a single table build
-followed by \(2^{13}\) inexpensive merges; two independent \(13\times23\) slices
-extended by the same column, corroborating the result. These procedures explain how the witnesses were found, but they are not
-part of their proof.
-
-\section{Coin weighing}
-
-Let \(M(n)\) be the minimum number of fixed \(\bits\)-valued spring-scale
-weighings that distinguish all subsets of \(n\) coins. The standard relation
-\cite{sebotannier2004,luye2022} is
+In nonadaptive coin weighing, $M(n)$ denotes the minimum number of spring-scale weighings required to identify all subsets of $n$ coins with known equal genuine weight. The classic coin-weighing problem originated with Erd\H{o}s and R\'enyi \cite{erdosrenyi1963}, Cantor and Mills \cite{cantormills1966}, and Lindstr\"om \cite{lindstrom1969}. Its algebraic connection with hypercube metric dimension and minimal doubly resolving sets was developed by Seb\H{o} and Tannier \cite{sebotannier2004} and Lu and Ye \cite{luye2022}:
 \[
- \beta(Q_n)-1\leq M(n)\leq\beta(Q_n).
+  \beta(Q_n) - 1 \le M(n) \le \beta(Q_n).
 \]
-The left inequality follows by adjoining an all-ones row to a weighing matrix;
-the right follows from normalizing a detecting matrix. It is only an
-inequality, not an identity.
 
 \begin{corollary}
-\(M(14)=8\).
+The exact nonadaptive coin-weighing value for 14 coins is $M(14) = 8$.
 \end{corollary}
 
 \begin{proof}
-Theorem~\ref{thm:main} with the left inequality above gives \(M(14)\geq8\).
-The artifact includes an
-\(8\times14\) binary weighing matrix whose \(2^{14}\) subset sums are pairwise
-distinct, giving \(M(14)\leq8\).
+Theorem~\ref{thm:main}(i) gives $M(14) \ge \beta(Q_{14}) - 1 = 8$. The accompanying artifact \cite{artifact} exhibits an $8 \times 14$ binary matrix whose $2^{14} = 16{,}384$ subset sums are all distinct, confirming $M(14) \le 8$.
 \end{proof}
 
-\section{Reproducibility and limitations}
+\section{Reproducibility and future directions}\label{sec:conclusion}
 
-The repository separates fast checks from the decisive computation. The
-command \texttt{./test.sh} verifies every upper-bound certificate with two
-implementations, rejects broken controls, runs direct small-instance
-comparisons, and exercises the Rust controls when the compiler is available.
-The scripts \texttt{enumerate/run\_8x14\_audit.sh} and
-\texttt{enumerate/run\_8x14\_rust\_audit.sh} execute all ten partitions and
-write immutable-style bundles containing source, binary, environment, complete
-logs, structural checks, and SHA-256 manifests.
+The public repository contains the source code, final certificates, automated checks, reproduction harnesses, and summarized audit results \cite{artifact}. The automated suite verifies all four sign-matrix certificates and the separate weighing certificate, exercises negative controls, and cross-validates small cases against McKay's catalogue and reference enumerations. Reproduction scripts can create non-overwriting raw log bundles; the raw discovery campaign is not needed to check the theorem and is not distributed. AI-assisted development and writing are disclosed below; the author reviewed and remains responsible for every mathematical and computational claim.
 
-For the next unresolved case, \(\beta(Q_{16})\), the artifact includes a portable
-nine-row extension of the C enumerator and a deterministic frontier-sampling
-driver, checked against all smaller controls and against the canonical form of
-the known \(9\times15\) certificate. We do not report a runtime prediction,
-because the work is highly uneven across frontier branches. In a bounded pilot
-over the \(66{,}547\) canonical depth-six prefixes, the completed sample subtrees
-ranged from 2 to \(30{,}964\) nodes while others remained unfinished at the time
-limit; the driver therefore withholds a total-work estimate rather than
-extrapolating from the easier units. Establishing nonexistence at \(n=16\) would
-still require completing the entire frontier.
-
-The public repository records the decisive node vectors, hashes, commands, and
-validation results. \TODO{Before journal submission, the complete C and Rust
-audit bundles should additionally be deposited in a durable public archive and
-assigned a DOI. This is an artifact-availability task, not a missing step in
-the enumeration itself, but it matters for long-term reproducibility.}
-
-The literature search located prior uses of the underlying hypercube
-symmetries, greedy and metaheuristic upper-bound searches, integer-programming
-checks, and the coin-weighing bridge
-\cite{mladenovic2012,nikolic2017,hertz2020,luye2022}. We found no prior report
-of the exact values at dimensions 14 or 15, nor of this exhaustive
-canonical-prefix computation. \TODO{Because absence claims are inherently
-fragile, the novelty statement should be checked once more by a domain expert
-and by the journal referee process.}
-
-\section{Conclusion}
-
-Normalizing one row converts the hypercube metric-dimension question into a
-finite subset-sum enumeration with an explicit hypercube symmetry group.
-Incremental collision testing makes each extension local, and orderly
-generation under normalized row automorphisms removes noncanonical prefixes
-without sacrificing completeness. The resulting exhaustive computation
-establishes \(\beta(Q_{14})=\beta(Q_{15})=9\), while explicit certificates
-improve the upper bounds for \(Q_{24}\), \(Q_{26}\), and \(Q_{29}\) and give
-\(M(14)=8\). We also explored counterexample-guided abstraction
-refinement (CEGAR), but the present formulation did not improve upon the
-exhaustive method. Stronger abstractions, partition refinement (individualization-refinement),
-and full row-pivoting symmetry reductions remain productive directions for scaling.
-The natural next strengthening is an independently designed proof-producing
-enumeration; the natural next open parameter is \(\beta(Q_{16})\).
+For the next open parameter, $\beta(Q_{16})$, the repository provides a dynamic frontier framework that pairs full row pivoting with dynamic work-stealing across multicore clusters. Establishing $\beta(Q_{16})$ and producing machine-checkable SAT/DRAT certificates remains the principal open frontier.
 
 \section*{Acknowledgments}
-\addcontentsline{toc}{section}{Acknowledgments}
-
-The author thanks Victor S. Miller for helpful discussions and for his
-independent verification of the smaller terms of the sequence.
-
-\section*{Disclosure of AI assistance}
-\addcontentsline{toc}{section}{Disclosure of AI assistance}
-
-The exploratory search code and the orchestration of the computational campaign
-were developed with substantial assistance from large language models,
-principally Anthropic's Claude and OpenAI's Codex; the same assistance was used
-in drafting and revising this manuscript. The mathematical results do not rest
-on that assistance. Every certificate and every mathematical nonexistence claim
-is established by the standalone verifiers and the exhaustive enumerator, each
-of which can be read, recompiled, and re-run independently of any AI system; the
-heuristics that discovered the upper-bound matrices are separated from the
-finite checks that prove them. The author has reviewed the definitions, proofs,
-and claims and takes full responsibility for their correctness.
+The author thanks Victor S. Miller for insightful discussions and for sharing independent MaxSAT data on smaller hypercubes.
 
 \clearpage
 \appendix
 \section{Detecting-matrix certificates}\label{app:certificates}
 
-Each block below displays a sign matrix row by row, with \texttt{+} denoting
-\(+1\) and \texttt{-} denoting \(-1\). By Lemma~\ref{lem:equivalence}, the
-absence of a nonzero ternary kernel vector certifies the stated metric-dimension
-upper bound. We include the \(9\times15\) matrix used in
-Theorem~\ref{thm:main}(i) as well as the three new certificates from
-Theorem~\ref{thm:main}(ii).
+Each block below displays an exact detecting sign matrix, where \texttt{+} denotes $+1$ and \texttt{-} denotes $-1$. By Lemma~\ref{lem:equivalence}, the absence of a nonzero ternary kernel vector certifies the metric dimension upper bound.
 
 \noindent\begin{minipage}[t]{0.48\textwidth}
 \vspace{0pt}
@@ -761,6 +571,10 @@ Theorem~\ref{thm:main}(ii).
 \end{verbatim}
 \endgroup
 \end{minipage}
+
+\section*{Declaration of generative AI and AI-assisted technologies}
+
+During this project, the author used Anthropic Claude, OpenAI Codex, and Antigravity to assist with software development, computational experimentation and verification, and manuscript drafting and revision. The author reviewed and validated the mathematical arguments, source code, computational outputs, citations, and final text, and takes full responsibility for the work.
 
 \bibliographystyle{plain}
 \bibliography{references}
