@@ -13,8 +13,8 @@ latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
 
 Before submission:
 
-1. Have a domain expert review the reduction and Proposition 4.
-2. Re-run both decisive audit scripts from a clean tagged commit.
+1. Have a domain expert review the reduction and canonical-prefix completeness argument.
+2. Re-run both decisive audit scripts from a clean checkout of the cited artifact commit.
 3. Push the reproducible artifact to the public GitHub repository and cite its
    full 40-character commit SHA.
 4. Add the author's preferred affiliation, postal address, and contact email.
