@@ -15,8 +15,8 @@ Before submission:
 
 1. Have a domain expert review the reduction and Proposition 4.
 2. Re-run both decisive audit scripts from a clean tagged commit.
-3. Deposit both complete audit bundles in a durable archive and replace the
-   pending artifact reference with its DOI.
+3. Push the reproducible artifact to the public GitHub repository and cite its
+   full 40-character commit SHA.
 4. Add the author's preferred affiliation, postal address, and contact email.
 5. Adapt formatting and declarations to the selected journal's template.
 
