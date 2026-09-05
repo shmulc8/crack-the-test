@@ -28,7 +28,7 @@
 \newcommand{\ternary}{\{-1,0,1\}}
 
 \title{Exact Metric Dimensions and Improved Upper Bounds for Hypercubes}
-\author{Shmulik Cohen}
+\author{Shmulik Cohen\\\normalsize Tel Aviv University, Tel Aviv, Israel\\\normalsize\href{mailto:shmulikcohen@mail.tau.ac.il}{\texttt{shmulikcohen@mail.tau.ac.il}}}
 \date{August 2026}
 
 \begin{document}
@@ -46,6 +46,12 @@ The lower bound is established via an exhaustive canonical-prefix search using R
   \beta(Q_{29}) \le 15.
 \]
 \end{abstract}
+
+\medskip
+\noindent\textbf{Keywords} Metric dimension \textperiodcentered\ Hypercube \textperiodcentered\ Detecting matrix \textperiodcentered\ Nonadaptive coin weighing \textperiodcentered\ Orderly generation \textperiodcentered\ Exhaustive search
+
+\medskip
+\noindent\textbf{Mathematics Subject Classification (2020)} 05C12 \textperiodcentered\ 05C85 \textperiodcentered\ 90C27 \textperiodcentered\ 11B13 \textperiodcentered\ 68R05
 
 \section{Introduction}\label{sec:intro}
 
@@ -121,7 +127,7 @@ Under this normalization:
 \item Each column is fully determined by its lower $q-1$ coordinates. Under the bijection $s \mapsto \frac{1-s}{2}$, these coordinates map to binary vectors in $\mathbb{F}_2^{q-1}$.
 \item No two columns can be identical, as $c_i = c_j$ implies $c_i - c_j = 0$.
 \end{enumerate}
-Therefore, searching for a $q \times n$ detecting matrix is equivalent to searching for an $n$-element subset of the $2^{q-1}$ available \emph{column types} $V = \{w \in \signs^q : w_1 = +1\} \cong \mathbb{F}_2^{q-1}$ whose subset sums in $\mathbb{Z}^q$ are all distinct.
+Therefore, searching for a $q \times n$ detecting matrix is equivalent to searching for an $n$-element subset of the $2^{q-1}$ available \emph{column types} $V = \{w \in \signs^q : w_1 = +1\} \cong \mathbb{F}_2^{q-1}$ whose subset sums in $\mathbb{Z}^q$ are all distinct. Figure~\ref{fig:framework} summarizes this correspondence.
 
 \begin{figure}[t]
 \centering
@@ -158,7 +164,7 @@ Therefore, searching for a $q \times n$ detecting matrix is equivalent to search
   \end{scope}
 
   % Arrow 1
-  \draw[->, thick, gray!80] (2.4, 1.0) -- (4.2, 1.0)
+  \draw[->, thick, gray!80] (2.4, 1.0) -- (3.7, 1.0)
     node[midway, above=3pt, font=\scriptsize, text=black] {$W_{ij}=1-2(v_i)_j$};
 
   % (b) Matrix representation
@@ -173,23 +179,25 @@ Therefore, searching for a $q \times n$ detecting matrix is equivalent to search
     \node[font=\footnotesize\bfseries, align=center] at (0,-1.85) {(b) Sign Matrix\\$Wz \neq 0 \;\forall z \neq 0$};
   \end{scope}
 
-  % Arrow 2
-  \draw[->, thick, gray!80] (7.8, 1.0) -- (9.5, 1.0)
-    node[midway, above=3pt, font=\scriptsize, text=black] {Normalize};
+  % Arrow 2: the example is already normalized because v_1=(0,0,0).
+  % Drop the fixed first row and encode the remaining signs as bits.
+  \draw[->, thick, gray!80] (7.8, 1.0) -- (9.0, 1.0)
+    node[midway, above=3pt, font=\scriptsize, text=black] {Encode};
 
   % (c) Normalized column types
-  \begin{scope}[shift={(12.2, 1.0)}]
+  \begin{scope}[shift={(12.0, 1.0)}]
     \node[align=center, font=\small] at (0,0) {
-      $\begin{bmatrix}
-        \mathbf{+1} & \mathbf{+1} & \mathbf{+1} \\
-        -1 & +1 & -1 \\
-        +1 & -1 & -1
-      \end{bmatrix} \longleftrightarrow \{c_1,c_2,c_3\} \subseteq \mathbb{F}_2^2$
+      $\left\{
+        c_1=\binom{1}{0},\;
+        c_2=\binom{0}{1},\;
+        c_3=\binom{1}{1}
+      \right\} \subseteq \mathbb{F}_2^2$
     };
-    \node[font=\footnotesize\bfseries, align=center] at (0,-1.85) {(c) Column Types in $\mathbb{F}_2^{q-1}$\\Distinct Subset Sums};
+    \node[font=\scriptsize, align=center] at (0,0.72) {lower signs mapped by $s\mapsto(1-s)/2$};
+    \node[font=\footnotesize\bfseries, align=center] at (0,-1.85) {(c) Binary Column Types in $\mathbb{F}_2^2$\\Distinct Sums at Each Subset Size};
   \end{scope}
 \end{tikzpicture}
-\caption{The geometric and algebraic framework connecting hypercube metric bases, detecting sign matrices, and normalized column types in $\mathbb{F}_2^{q-1}$.}
+\caption{The geometric and algebraic framework connecting hypercube metric bases, detecting sign matrices, and normalized column types in $\mathbb{F}_2^{q-1}$. Binary subset sums are taken in $\mathbb{Z}^{q-1}$ and must be distinct among subsets of equal cardinality; the omitted all-ones row distinguishes different cardinalities.}
 \label{fig:framework}
 \end{figure}
 
@@ -278,6 +286,8 @@ Suppose for contradiction that some $g \in O(q, \mathbb{Z})$ produces $\Phi_g(A)
 In either case, $\Phi_g(X)$ is strictly lexicographically smaller than $X$, contradicting the minimality of $X$.
 \end{proof}
 
+Figure~\ref{fig:tree} illustrates the resulting canonical-prefix search tree, in which dashed branches are eliminated by collision testing or by prefix minimality.
+
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[
@@ -335,7 +345,7 @@ Testing $(q-1)! = 5{,}040$ coordinate permutations at every node is accelerated 
 
 Table~\ref{tab:pruning} illustrates the pruning efficiency under the normalized-first-row stabilizer used by the decisive computation.
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \setlength{\tabcolsep}{5pt}
 \caption{Effect of canonical-prefix pruning on search tree size.}
@@ -370,7 +380,7 @@ Each partition terminates with an explicit exit status confirming zero solutions
 
 To increase confidence in the computation, we applied the controls summarized in Table~\ref{tab:verification}. These checks were developed within the same project and rely on the same orderly-generation argument; they are neither a third-party replication nor a formally verified proof certificate.
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \setlength{\tabcolsep}{4pt}
 \caption{Computational verification and consistency checks.}
@@ -398,9 +408,9 @@ If an $8\times 15$ detecting matrix existed, deleting any column would yield an 
 
 \section{New upper bounds for large hypercubes}\label{sec:upper-bounds}
 
-The upper bounds in Theorem~\ref{thm:main}(ii) are certified by three explicit sign matrices given in Appendix~\ref{app:certificates}.
+The upper bounds in Theorem~\ref{thm:main}(ii) are certified by three explicit sign matrices given in Appendix~\ref{app:certificates}. Table~\ref{tab:bounds} compares them with the previously published bounds.
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \caption{New upper bounds certified by explicit detecting matrices.}
 \label{tab:bounds}
@@ -417,7 +427,7 @@ Dimension $n$ & Matrix Rows $q$ & Published Upper Bound & New Upper Bound $\beta
 
 \subsection{Search methods: meet-in-the-middle ternary kernel counter}
 
-The matrices were discovered using a meet-in-the-middle ternary kernel counter. Splitting $n$ columns into two halves of size $\lceil n/2 \rceil$ and $\lfloor n/2 \rfloor$, the routine enumerates the signed sums of both halves, fixed-width radix-sorts their packed row signatures, and merge-scans the sorted lists for exact cancellations $Wz=0$. For fixed packed width, this requires $O(3^{\lceil n/2 \rceil})$ time and space. For $15 \times 29$, the larger half has $3^{15} = 14{,}348{,}907$ signed choices.
+The matrices were discovered using a meet-in-the-middle ternary kernel counter. Splitting $n$ columns into two halves of size $\lceil n/2 \rceil$ and $\lfloor n/2 \rfloor$, the routine enumerates the signed sums of both halves, fixed-width radix-sorts their packed row signatures, and merge-scans the sorted lists for exact cancellations $Wz=0$. For fixed packed width, this requires $O(3^{\lceil n/2 \rceil})$ time and space. For $15 \times 29$, the larger half has $3^{15} = 14{,}348{,}907$ signed choices. Figure~\ref{fig:mitm} outlines the procedure.
 
 \begin{figure}[t]
 \centering
@@ -478,12 +488,12 @@ Theorem~\ref{thm:main}(i) gives $M(14) \ge \beta(Q_{14}) - 1 = 8$. The accompany
 
 \section{Reproducibility and future directions}\label{sec:conclusion}
 
-The public repository contains the source code, final certificates, automated checks, reproduction harnesses, and summarized audit results \cite{artifact}. The automated suite verifies all four sign-matrix certificates and the separate weighing certificate, exercises negative controls, and cross-validates small cases against McKay's catalogue and reference enumerations. Reproduction scripts can create non-overwriting raw log bundles; the raw discovery campaign is not needed to check the theorem and is not distributed. AI-assisted development and writing are disclosed below; the author reviewed and remains responsible for every mathematical and computational claim.
+The public repository contains the source code, final certificates, automated checks, reproduction harnesses, and summarized audit results \cite{artifact}. The automated suite verifies all four sign-matrix certificates and the separate weighing certificate, exercises negative controls, and cross-validates small cases against direct reference enumerations. A separate reproduction harness checks the $8\times13$ classification against McKay's catalogue. Reproduction scripts can create non-overwriting raw log bundles; the raw discovery campaign is not needed to check the theorem and is not distributed. AI-assisted development and writing are disclosed below; the author reviewed and remains responsible for every mathematical and computational claim.
 
-For the next open parameter, $\beta(Q_{16})$, the repository provides a dynamic frontier framework that pairs full row pivoting with dynamic work-stealing across multicore clusters. Establishing $\beta(Q_{16})$ and producing machine-checkable SAT/DRAT certificates remains the principal open frontier.
+For the next open parameter, $\beta(Q_{16})$, the repository provides a dynamic frontier framework that pairs full row pivoting with a local pool of worker processes on a multicore machine. Establishing $\beta(Q_{16})$ and producing machine-checkable SAT/DRAT certificates remains the principal open frontier.
 
 \section*{Acknowledgments}
-The author thanks Victor S. Miller for insightful discussions and for sharing independent MaxSAT data on smaller hypercubes.
+The author thanks Victor S. Miller for insightful discussions and for sharing independent MaxSAT data on smaller hypercubes, and Noga Alon and Shahar Maoz for their advice regarding the submission of this work.
 
 \appendix
 \section{Detecting-matrix certificates}\label{app:certificates}
@@ -571,9 +581,21 @@ Each block below displays an exact detecting sign matrix, where \texttt{+} denot
 \endgroup
 \end{minipage}
 
-\section*{Declaration of generative AI and AI-assisted technologies}
+\section*{Statements and Declarations}
 
-During this project, the author used Anthropic Claude, OpenAI Codex, and Antigravity to assist with software development, computational experimentation and verification, and manuscript drafting and revision. The author reviewed and validated the mathematical arguments, source code, computational outputs, citations, and final text, and takes full responsibility for the work.
+\noindent\textbf{Funding.} No funding was received for conducting this study.
+
+\smallskip
+\noindent\textbf{Competing interests.} The author declares no competing interests.
+
+\smallskip
+\noindent\textbf{Data availability.} All data supporting the findings of this study, including the detecting-matrix certificates and the per-depth node-count vectors, are contained in this article and in the public repository \cite{artifact}.
+
+\smallskip
+\noindent\textbf{Code availability.} The complete source code for the search and verification programs, together with the automated verification suite and reproduction harnesses, is publicly available at \cite{artifact}.
+
+\smallskip
+\noindent\textbf{Declaration of generative AI and AI-assisted technologies.} During this project, the author used Anthropic Claude, OpenAI Codex, and Antigravity to assist with software development, computational experimentation and verification, and manuscript drafting and revision. The author reviewed and validated the mathematical arguments, source code, computational outputs, citations, and final text, and takes full responsibility for the work.
 
 \bibliographystyle{plain}
 \bibliography{references}
