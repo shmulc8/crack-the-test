@@ -1,0 +1,26 @@
+{
+  "format": 1,
+  "q": 3,
+  "n": 4,
+  "verdict": "UNSAT",
+  "capacity_premises": {},
+  "stats": {
+    "weight_patterns": 1,
+    "entropy_survivors": 0,
+    "minimum_weight": 2,
+    "nodes": 1,
+    "closed_states": 1,
+    "leaves": {
+      "entropy": 1
+    },
+    "seconds": 3.1e-05
+  },
+  "proof": [
+    {
+      "profile": [
+        4
+      ],
+      "kind": "entropy"
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "format": 1,
+  "q": 4,
+  "n": 6,
+  "verdict": "UNSAT",
+  "capacity_premises": {
+    "3": 3
+  },
+  "stats": {
+    "weight_patterns": 1,
+    "entropy_survivors": 1,
+    "minimum_weight": 3,
+    "nodes": 4,
+    "closed_states": 4,
+    "leaves": {
+      "collision": 1,
+      "branch": 3
+    },
+    "seconds": 9e-05
+  },
+  "proof": [
+    {
+      "profile": [
+        1,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        1
+      ],
+      "kind": "collision",
+      "z": [
+        0,
+        1,
+        -1,
+        -1,
+        1,
+        0
+      ]
+    },
+    {
+      "profile": [
+        2,
+        1,
+        1,
+        2
+      ],
+      "kind": "branch"
+    },
+    {
+      "profile": [
+        3,
+        3
+      ],
+      "kind": "branch"
+    },
+    {
+      "profile": [
+        6
+      ],
+      "kind": "branch"
+    }
+  ]
+}

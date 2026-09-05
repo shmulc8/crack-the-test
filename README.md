@@ -138,6 +138,7 @@ same column. Deleting any column of a valid certificate keeps it valid, so the
 
 ## Search code
 
+- [`experiments/entropy-reduction/`](experiments/entropy-reduction/) — experimental exact-entropy and row-reduction search with a separate certificate checker. It has checked nonexistence proofs through 6×9; its bounded 7×11 and 8×14 runs remain inconclusive.
 - [`enumerate/`](enumerate/) — the exhaustive enumerator behind β(Q₁₄) = 9.
   It includes separate C and safe-Rust implementations plus a direct Python
   small-instance reference checker.

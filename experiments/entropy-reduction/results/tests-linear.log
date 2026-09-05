@@ -1,0 +1,15 @@
+test_budget_is_unknown_and_has_no_proof (test_reduce.ReductionTests.test_budget_is_unknown_and_has_no_proof) ... ok
+test_complete_small_instances (test_reduce.ReductionTests.test_complete_small_instances) ... ok
+test_conditional_entropy_preserves_positive_prefixes (test_reduce.ReductionTests.test_conditional_entropy_preserves_positive_prefixes) ... ok
+test_entropy_boundary_and_obstruction (test_reduce.ReductionTests.test_entropy_boundary_and_obstruction) ... ok
+test_false_entropy_and_unproved_premise_rejected (test_reduce.ReductionTests.test_false_entropy_and_unproved_premise_rejected) ... ok
+test_false_pair_obstruction_rejected (test_reduce.ReductionTests.test_false_pair_obstruction_rejected) ... ok
+test_larger_positive_controls (test_reduce.ReductionTests.test_larger_positive_controls) ... ok
+test_linear_search_matches_complete_small_enumeration (test_reduce.ReductionTests.test_linear_search_matches_complete_small_enumeration) ... ok
+test_linear_witness_and_corruption (test_reduce.ReductionTests.test_linear_witness_and_corruption) ... ok
+test_missing_state_and_false_collision_rejected (test_reduce.ReductionTests.test_missing_state_and_false_collision_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.061s
+
+OK

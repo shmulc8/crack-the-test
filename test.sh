@@ -17,8 +17,10 @@ JS="bun"; command -v bun >/dev/null || JS="node"
 for m in matrices/beta_Q15_le_9.txt matrices/beta_Q24_le_13.txt \
          matrices/beta_Q26_le_14.txt matrices/beta_Q29_le_15.txt; do
   echo "== $m"
-  "$verify_bin" "$m" | tail -2
-  "$JS" verify.js "$m" | tail -1
+  "$verify_bin" "$m" >"$sample_log"
+  tail -2 "$sample_log"
+  "$JS" verify.js "$m" >"$sample_log"
+  tail -1 "$sample_log"
 done
 
 echo "== matrices/M14_le_8.txt (weighing certificate for M(14) <= 8)"
@@ -39,13 +41,16 @@ if "$JS" verify.js "$empty_matrix" >/dev/null 2>&1; then echo "FAIL: JS verifier
 echo "both verifiers correctly reject it"
 echo "== enumerator controls and fail-closed partition validation"
 cc -O2 -o "$enum_bin" enumerate/enum.c
-"$enum_bin" 3 4 --maxsol 1 --report 99999 | grep -q '^solutions found: 0$'
-"$enum_bin" 4 4 --maxsol 1 --report 99999 | grep -q '^solutions found: 1$'
+"$enum_bin" 3 4 --maxsol 1 --report 99999 >"$sample_log"
+grep -q '^solutions found: 0$' "$sample_log"
+"$enum_bin" 4 4 --maxsol 1 --report 99999 >"$sample_log"
+grep -q '^solutions found: 1$' "$sample_log"
 if "$enum_bin" 8 13 --split 10 --part 10 --splitdepth 6 --maxsol 1 >/dev/null 2>&1; then
   echo "FAIL: enumerator accepted an out-of-range partition"; exit 1
 fi
 "$enum_bin" 8 13 --maxsol 1 --report 99999 >"$sample_log"
-python3 enumerate/verify_extensions.py "$sample_log" 8 13 | grep -q '^SAMPLE PASS:'
+extension_output=$(python3 enumerate/verify_extensions.py "$sample_log" 8 13)
+printf '%s\n' "$extension_output" | grep -q '^SAMPLE PASS:'
 if python3 enumerate/verify_extensions.py "$sample_log" 8 13 --expect-complete 2 >/dev/null 2>&1; then
   echo "FAIL: extension checker accepted an incomplete classification"; exit 1
 fi
@@ -54,15 +59,16 @@ echo "== q=9 packing, known-positive prefix, and frontier-driver controls"
 q9_control=$(python3 enumerate/q9_positive_control.py matrices/beta_Q15_le_9.txt)
 q9_prefix=${q9_control#CANONICAL Q9 CONTROL: }
 "$enum_bin" 9 15 --maxsol 1 --report 99999 \
-  --prefix "$q9_prefix" \
-  | grep -q '^solutions found: 1$'
+  --prefix "$q9_prefix" >"$sample_log"
+grep -q '^solutions found: 1$' "$sample_log"
 q9_pivot=$(python3 enumerate/q9_pivot_control.py matrices/beta_Q15_le_9.txt)
 q9_pivot_prefix=${q9_pivot#PIVOT CANONICAL Q9 CONTROL: }
 "$enum_bin" 9 15 --maxsol 1 --report 99999 --canondepth 15 --pivots \
-  --prefix "$q9_pivot_prefix" \
-  | grep -q '^solutions found: 1$'
-if "$enum_bin" 9 15 --maxsol 1 --report 99999 --canondepth 15 --pivots \
-    --prefix "$q9_prefix" | grep -q '^solutions found: 1$'; then
+  --prefix "$q9_pivot_prefix" >"$sample_log"
+grep -q '^solutions found: 1$' "$sample_log"
+"$enum_bin" 9 15 --maxsol 1 --report 99999 --canondepth 15 --pivots \
+    --prefix "$q9_prefix" >"$sample_log"
+if grep -q '^solutions found: 1$' "$sample_log"; then
   echo "FAIL: --pivots did not reject the baseline-canonical q9 prefix (pivot group inert at q=9)"; exit 1
 fi
 echo "q=9 --pivots positive control passed (accepts the O(q,Z)-canonical solution, rejects the baseline-canonical prefix)"

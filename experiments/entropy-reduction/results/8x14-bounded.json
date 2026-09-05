@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "q": 8,
+  "n": 14,
+  "verdict": "UNKNOWN",
+  "capacity_premises": {
+    "3": 3,
+    "4": 5,
+    "5": 6,
+    "6": 8,
+    "7": 10
+  },
+  "stats": {
+    "weight_patterns": 120,
+    "entropy_survivors": 120,
+    "minimum_weight": 4,
+    "nodes": 20001,
+    "closed_states": 19993,
+    "leaves": {
+      "collision": 19756,
+      "branch": 237
+    },
+    "seconds": 6.884627
+  }
+}

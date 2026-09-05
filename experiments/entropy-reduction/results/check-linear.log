@@ -1,0 +1,5 @@
+{"q": 3, "n": 4, "checked_states": 1, "derived_capacity": 3, "certificate": "results/3x4.json"}
+{"q": 4, "n": 6, "checked_states": 4, "derived_capacity": 5, "certificate": "results/4x6.json"}
+{"q": 5, "n": 7, "checked_states": 276, "derived_capacity": 6, "certificate": "results/5x7.json"}
+{"q": 6, "n": 9, "checked_states": 33276, "derived_capacity": 8, "certificate": "results/linear-6x9-True.json.gz"}
+CERTIFICATE CHAIN VERIFIED
