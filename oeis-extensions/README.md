@@ -2,6 +2,8 @@
 
 Computational contributions for OEIS A386493 and A279404, September 2026.
 
+**[A386493: concise result, picture, proof, and one-command verification](A386493/README.md)**
+
 ## A386493: a(15) = a(16) = 89
 
 [Constructions and two exhaustive Rust verifiers](A386493/n15-n16/README.md)
