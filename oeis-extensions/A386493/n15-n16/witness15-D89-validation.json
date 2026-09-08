@@ -1,0 +1,90 @@
+{
+  "status": "verified-witness",
+  "n": 15,
+  "squared_diameter": 89,
+  "pairs_checked": 105,
+  "triples_checked": 455,
+  "apex_distinct_distance_counts": [
+    14,
+    14,
+    14,
+    14,
+    14,
+    14,
+    14,
+    14,
+    14,
+    14,
+    14,
+    14,
+    14,
+    14,
+    14
+  ],
+  "points": [
+    [
+      8,
+      3
+    ],
+    [
+      7,
+      0
+    ],
+    [
+      1,
+      5
+    ],
+    [
+      1,
+      6
+    ],
+    [
+      4,
+      0
+    ],
+    [
+      8,
+      2
+    ],
+    [
+      4,
+      8
+    ],
+    [
+      8,
+      5
+    ],
+    [
+      2,
+      0
+    ],
+    [
+      5,
+      0
+    ],
+    [
+      2,
+      8
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      1,
+      3
+    ],
+    [
+      8,
+      6
+    ],
+    [
+      7,
+      8
+    ]
+  ],
+  "source_candidate_sha256": "1893f92db26e33ce1dc9ecf7e01417a86670d3d5729bf977a3fc6b1e0392d3e7",
+  "possible_squared_distances_between_85_and_89": [
+    89
+  ]
+}
