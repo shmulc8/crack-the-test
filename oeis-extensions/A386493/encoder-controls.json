@@ -1,0 +1,23 @@
+[
+  {
+    "n": 12,
+    "squared_diameter_bound": 53,
+    "fixed_witness_size": 12,
+    "expected_sat": true,
+    "actual_sat": true
+  },
+  {
+    "n": 13,
+    "squared_diameter_bound": 65,
+    "fixed_witness_size": 13,
+    "expected_sat": true,
+    "actual_sat": true
+  },
+  {
+    "n": 13,
+    "squared_diameter_bound": 64,
+    "fixed_witness_size": 13,
+    "expected_sat": false,
+    "actual_sat": false
+  }
+]

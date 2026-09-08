@@ -1,0 +1,30 @@
+[
+  {
+    "source": "A386493/runs/bool-n13-D65.json",
+    "sequence": "A386493",
+    "points": 13,
+    "actual_squared_diameter": 65,
+    "status": "valid construction only"
+  },
+  {
+    "source": "A386493/runs/bool-n14-D65.json",
+    "sequence": "A386493",
+    "points": 14,
+    "actual_squared_diameter": 65,
+    "status": "valid construction only"
+  },
+  {
+    "source": "A279404/logs/n19-k11.json",
+    "sequence": "A279404",
+    "n": 19,
+    "points": 11,
+    "status": "valid construction only"
+  },
+  {
+    "source": "A279404/logs/n20-k11.json",
+    "sequence": "A279404",
+    "n": 20,
+    "points": 11,
+    "status": "valid construction only"
+  }
+]
