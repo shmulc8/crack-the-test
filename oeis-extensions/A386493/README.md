@@ -1,5 +1,7 @@
 # A386493: four exact lattice diameters
 
+Shmulik Cohen, September 8, 2026.
+
 **a(13) = a(14) = 65; a(15) = a(16) = 89.**
 
 [OEIS A386493](https://oeis.org/A386493) asks for the smallest squared diameter

@@ -1,13 +1,13 @@
 [
   {
-    "source": "A386493/runs/bool-n13-D65.json",
+    "source": "A386493/supplementary-sat/runs/bool-n13-D65.json",
     "sequence": "A386493",
     "points": 13,
     "actual_squared_diameter": 65,
     "status": "valid construction only"
   },
   {
-    "source": "A386493/runs/bool-n14-D65.json",
+    "source": "A386493/supplementary-sat/runs/bool-n14-D65.json",
     "sequence": "A386493",
     "points": 14,
     "actual_squared_diameter": 65,

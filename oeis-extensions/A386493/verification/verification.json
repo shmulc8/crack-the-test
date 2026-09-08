@@ -24,7 +24,7 @@
   "exclusions": [
     {
       "source": "exact_search.rs",
-      "source_sha256": "bd9a4c2ec452cbdc527ee1e06604cfdf0fa33ff8d6588c7a726d95fb408392cb",
+      "source_sha256": "af5632af9724231d96a06dd4d532df80d4dceadd6c5123a9ef7ea157863d63d9",
       "result": {
         "status": "unsat",
         "exhaustive": true,
@@ -34,12 +34,12 @@
         "points": [],
         "nodes": 789000,
         "coloring_calls": 352780,
-        "elapsed_sec": 0.3163
+        "elapsed_sec": 0.311955
       }
     },
     {
       "source": "exact_search.rs",
-      "source_sha256": "bd9a4c2ec452cbdc527ee1e06604cfdf0fa33ff8d6588c7a726d95fb408392cb",
+      "source_sha256": "af5632af9724231d96a06dd4d532df80d4dceadd6c5123a9ef7ea157863d63d9",
       "result": {
         "status": "unsat",
         "exhaustive": true,
@@ -49,17 +49,17 @@
         "points": [],
         "nodes": 11736134,
         "coloring_calls": 5415004,
-        "elapsed_sec": 5.791221
+        "elapsed_sec": 5.711258
       }
     },
     {
       "source": "independent85.rs",
-      "source_sha256": "cb3c880504ebf094a5c2dab093dbce1adebfdf532b3bb947b3475d6ff7222ddf",
+      "source_sha256": "9703d406d84b8e7db083737f80495fa8b56b22b8950e9707b17b1dd25385a72e",
       "result": {
         "status": "unsat",
         "exhaustive": true,
         "nodes": 46676991,
-        "seconds": 0.674238375,
+        "seconds": 0.575796125,
         "D": 85,
         "n": 15,
         "domain_points": 100,

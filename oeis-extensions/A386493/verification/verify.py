@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Reproduce A386493(13..16) = 65,65,89,89. Python stdlib + rustc only."""
+# Contributed by Shmulik Cohen, Sep 08 2026; developed with AI assistance.
 from pathlib import Path
 from itertools import combinations
 import hashlib

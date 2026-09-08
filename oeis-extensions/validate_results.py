@@ -5,8 +5,8 @@ from verify_witness import verify
 
 root=Path(__file__).resolve().parent
 cases=[
-    ('A386493','runs/bool-n13-D65.json'),
-    ('A386493','runs/bool-n14-D65.json'),
+    ('A386493','supplementary-sat/runs/bool-n13-D65.json'),
+    ('A386493','supplementary-sat/runs/bool-n14-D65.json'),
     ('A279404','logs/n19-k11.json'),
     ('A279404','logs/n20-k11.json'),
 ]

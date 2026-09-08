@@ -1,3 +1,5 @@
+// Contributed by Shmulik Cohen, Sep 08 2026; developed with AI assistance.
+// Fixed exhaustive exclusion: 15 points, squared diameter at most 85.
 use std::time::{Instant,Duration};
 struct Search { adj:Vec<u128>, bad:Vec<Vec<u128>>, sel:Vec<usize>, nodes:u64, start:Instant, timeout:bool, witness:Option<Vec<usize>> }
 impl Search {

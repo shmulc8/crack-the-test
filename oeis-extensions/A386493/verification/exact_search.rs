@@ -1,7 +1,8 @@
 //! Exhaustive subset search for A386493 on the translated finite square.
 //!
-//! This deliberately has no SAT dependency.  A u128 is sufficient for the
-//! 9x9 domain used at D <= 74 (and the implementation rejects larger domains).
+//! Contributed by Shmulik Cohen, Sep 08 2026; developed with AI assistance.
+//! No SAT dependency. The u128 bitset supports at most 128 domain points,
+//! including the 81- and 100-point domains used for D=64 and D=85.
 
 use std::env;
 use std::fs;

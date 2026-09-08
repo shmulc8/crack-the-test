@@ -1,7 +1,7 @@
 # A386493: a(13..16) = 65, 65, 89, 89
 
 A reproducible exhaustive computational proof for four terms of
-[OEIS A386493](https://oeis.org/A386493). Computation: September 8, 2026.
+[OEIS A386493](https://oeis.org/A386493). Shmulik Cohen, September 8, 2026.
 
 The problem is to minimize the squared diameter of a set of integer lattice
 points such that, at every selected point, its distances to all other selected
@@ -34,7 +34,7 @@ The 16-point construction, of squared diameter 89, is
 ```
 
 Deleting the final point gives the 13- and 15-point constructions. All four
-are in `witnesses.json`. The verifier checks distinct integer coordinates,
+are in [witnesses.json](verification/witnesses.json). The verifier checks distinct integer coordinates,
 the exact diameter, every apex's distance list, and every triple.
 
 ## Lower bounds: exhaustive exclusions
@@ -49,7 +49,7 @@ future points too far from it and all future points that would form a forbidden
 triple with it and an earlier selected point. Each feasible subset occurs in
 the search. Branches with too few remaining candidates cannot contain a solution.
 
-`exact_search.rs` also uses a proper graph-coloring upper bound. The graph
+[exact_search.rs](verification/exact_search.rs) also uses a proper graph-coloring upper bound. The graph
 connects pairs of remaining candidates that can coexist with the selected
 prefix. Each color class consists of mutually incompatible candidates, so a
 completion uses at most one point per color.
@@ -63,7 +63,11 @@ completion uses at most one point per color.
 The independent D=85 program uses candidate-count pruning only, with no
 coloring bound, and constructs the forbidden triples by separately testing
 all three apex positions. All three searches completed exhaustive exclusions.
-The programs distinguish timeout from a completed exclusion.
+The programs distinguish timeout from a completed exclusion. The wrapper allows
+90 seconds per search and terminates the process after 100 seconds. A timeout
+raises an error; it never counts as a completed exclusion. The general program
+uses a 128-bit candidate set (at most 128 domain points); the independent
+program is fixed to 15 points and D=85.
 
 The D=64 exclusion gives a lower bound of 65 for 13 points and hence for
 14 points. The D=85 exclusion also covers 16 points by taking a 15-point
@@ -88,5 +92,5 @@ machine-dependent; an interrupted or timed-out run cannot establish a bound.
 This is an exhaustive computational argument, not a proof-assistant certificate.
 An additional independently checked SAT/DRAT certificate for the D=64
 exclusion is available in the
-[original evidence repository](https://github.com/shmulc8/crack-the-test/tree/dcb886fd614e3f5b996cb74f7e7069747b71d79e/oeis-extensions).
+[supplementary SAT package](supplementary-sat/README.md).
 It is supplementary: the complete non-SAT replay above stands on its own.
