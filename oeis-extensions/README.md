@@ -6,7 +6,7 @@ Computational contributions for OEIS A386493 and A279404, September 2026.
 
 ## A386493: a(15) = a(16) = 89
 
-[Constructions and two exhaustive Rust verifiers](A386493/n15-n16/README.md)
+[Constructions and two exhaustive Rust verifiers](A386493/README.md)
 establish the next two terms without SAT. Both complete exclusions and both
 point sets can be replayed with a single Python command.
 
