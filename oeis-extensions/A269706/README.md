@@ -49,4 +49,6 @@ PASS. No optimization solver or commercial license is required for checking.
 ## Submission status
 
 Evidence published through the versioned proof release linked above.
-OEIS editorial submission is a separate step; see `OEIS-SUBMISSION.md`.
+Submitted for OEIS editorial review on September 14, 2026:
+[submission #25](https://oeis.org/history/view?seq=A269706&v=25).
+Status: **proposed, not approved**. See `OEIS-SUBMISSION.md`.

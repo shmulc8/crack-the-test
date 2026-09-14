@@ -1,18 +1,22 @@
-# Proposed OEIS update for A269706
+# Submitted OEIS update for A269706
 
-Status: local draft. Do not submit until the evidence links resolve publicly.
+Status: proposed for editorial review on September 14, 2026 (edit #24, submission #25).
+Receipt: https://oeis.org/history/view?seq=A269706&v=25
+Not yet approved.
 
 ## FORMULA
 
-90 <= a(8) <= 94. - Shmulik Cohen, date of submission
+90 <= a(8) <= 94. - Shmulik Cohen, Sep 14 2026
 
 ## LINKS
 
 Shmulik Cohen, Verified bounds for the 8 × 8 × 8 grid: construction,
 exact-integer checkers, and lower-bound certificates.
 
-Use the permanent publication commit URL for this package, with the proof
-archive linked from its README/ARCHIVE.json. No public URL is assigned yet.
+Submitted evidence URL:
+https://github.com/shmulc8/crack-the-test/tree/a0641c912a018d43b92720cb6ddd8b62ab86f8ed/oeis-extensions/A269706
+
+The versioned proof release is linked from the package.
 
 ## Editorial explanation
 
