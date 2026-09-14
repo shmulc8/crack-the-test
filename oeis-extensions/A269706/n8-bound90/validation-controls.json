@@ -1,0 +1,4 @@
+{
+  "refined_root": "PASS",
+  "arbitrary_root_exclusion": "REJECTED: root excludes more than the canonical corner-first case"
+}

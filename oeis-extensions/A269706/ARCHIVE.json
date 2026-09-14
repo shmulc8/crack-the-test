@@ -1,0 +1,23 @@
+{
+  "filename": "A269706-bound90-proofs.tar.gz",
+  "bytes": 3196321206,
+  "sha256": "aa42ee392cf43106bd7ad09e61312aae36e022321d19e91625f90e9f8034e628",
+  "proof_files": 1474,
+  "archive_integrity": "PASS: every archived proof matches prior verified case digest; no extra files",
+  "public_url": "https://github.com/shmulc8/crack-the-test/releases/tag/a269706-bounds-90-94-v1",
+  "status": "Release assets; concatenate part01 and part02 before extraction",
+  "parts": [
+    {
+      "filename": "A269706-bound90-proofs.tar.gz.part01",
+      "bytes": 1700000000,
+      "sha256": "d408bcd8e9ee69cd1806bd48365723b967205b2e2ac13f5a704442f7d55de27d",
+      "url": "https://github.com/shmulc8/crack-the-test/releases/download/a269706-bounds-90-94-v1/A269706-bound90-proofs.tar.gz.part01"
+    },
+    {
+      "filename": "A269706-bound90-proofs.tar.gz.part02",
+      "bytes": 1496321206,
+      "sha256": "4b09a8db19ce264f0a0341da9db61ffad617a0a83336ed2143c81740397e737f",
+      "url": "https://github.com/shmulc8/crack-the-test/releases/download/a269706-bounds-90-94-v1/A269706-bound90-proofs.tar.gz.part02"
+    }
+  ]
+}

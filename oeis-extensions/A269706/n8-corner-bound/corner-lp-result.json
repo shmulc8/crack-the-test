@@ -1,0 +1,15 @@
+{
+  "sequence": "A269706",
+  "n": 8,
+  "method": "corner-choice symmetry quotient + GLOP duals + exact integer certificates",
+  "total_cases": 65536,
+  "total_representatives": 1474,
+  "completed_representatives": 1474,
+  "failed_certificates": [],
+  "complete": true,
+  "elapsed_seconds": 185.18030291603645,
+  "minimum_combined_lower_bound": 86,
+  "global_lower_bound_claim": 86,
+  "records_sha256": "cf743170cebe50bd365733197aaed655d3d0402f3a1b2ab2a8b8a93af26956ec",
+  "source_sha256": "ef9271e9582d8a00b2a27d6ef505d7a316bc6a51feba337a0937ca6fc248af63"
+}
