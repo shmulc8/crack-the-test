@@ -1,5 +1,7 @@
 # The metric dimension of hypercubes: β(Q₁₄) = 9, and new upper bounds for Q₂₄, Q₂₆, Q₂₉
 
+Other contributions: [OEIS constructions, exact extensions, and bounds](oeis-extensions/README.md), including A386493, A279404, and A269706.
+
 Two kinds of result on the metric dimension β(Q_n) of the hypercube: explicit,
 machine-checkable matrices for the upper bounds, and reproducible exhaustive
 search code plus the recorded partition totals for the lower bound.

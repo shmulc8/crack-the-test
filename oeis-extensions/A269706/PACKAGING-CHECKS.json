@@ -1,7 +1,0 @@
-{
-  "upper_witness": "PASS: 94 vertices cover all 512 vertices",
-  "corner_partition": "PASS: 1474 representatives cover 65536 choices",
-  "checker_sources": "All four Python files copied byte-for-byte from research workspace",
-  "full_lower_bound": "Prior recorded PASS preserved; full mathematical proof not rerun during packaging",
-  "publication": "Published at evidence commit a0641c9 and versioned release; both uploaded asset digests match; OEIS submission #25 proposed"
-}

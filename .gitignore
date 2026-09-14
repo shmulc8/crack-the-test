@@ -25,3 +25,9 @@ tmp-*/
 /paper/*.log
 /paper/*.out
 /output/
+
+# Local environments and publication staging
+.venv/
+venv/
+.pytest_cache/
+/publication-artifacts/
