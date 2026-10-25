@@ -39,7 +39,7 @@ Determining the metric dimension $\beta(Q_n)$ of the $n$-dimensional hypercube $
 \[
   \beta(Q_{14}) = \beta(Q_{15}) = 9.
 \]
-The lower bound is established via an exhaustive canonical-prefix search using Read--Farad\v{z}ev orderly generation under the stabilizer of the normalized first row. The decisive computation prunes non-canonical prefixes through depth 8. Separate implementations in C and safe Rust agree on the full per-depth node-count vector, and the search is cross-checked against McKay's catalogue and reference enumerations of dissociated sets. As an immediate corollary, we settle the nonadaptive coin-weighing parameter $M(14) = 8$. Finally, using a meet-in-the-middle ternary kernel search combined with simulated annealing and extension scans, we construct explicit sign matrices, checked by two separately written exact verifiers, that improve the best known upper bounds for larger hypercubes:
+The lower bound is established via an exhaustive canonical-prefix search using Read--Farad\v{z}ev orderly generation under the stabilizer of the normalized first row. The decisive computation prunes non-canonical prefixes through depth 8. Separate implementations in C and safe Rust agree on the full per-depth node-count vector, and the search is cross-checked against McKay's catalogue and reference enumerations of dissociated sets. As a corollary, we give an independent derivation of the nonadaptive coin-weighing value $M(14) = 8$, whose lower bound also follows from McKay's computation of the maximum dissociated set size in $\{0,1\}^7$. Finally, using a meet-in-the-middle ternary kernel search combined with simulated annealing and extension scans, we construct explicit sign matrices, checked by two separately written exact verifiers, that improve the best known upper bounds for larger hypercubes:
 \[
   \beta(Q_{24}) \le 13, \qquad
   \beta(Q_{26}) \le 14, \qquad
@@ -485,6 +485,10 @@ The exact nonadaptive coin-weighing value for 14 coins is $M(14) = 8$.
 \begin{proof}
 Theorem~\ref{thm:main}(i) gives $M(14) \ge \beta(Q_{14}) - 1 = 8$. The accompanying artifact \cite{artifact} exhibits an $8 \times 14$ binary matrix whose $2^{14} = 16{,}384$ subset sums are all distinct, confirming $M(14) \le 8$.
 \end{proof}
+
+\begin{remark}
+Neither half of $M(14) = 8$ is new. Since $M(n) \le k$ if and only if $\{0,1\}^k$ contains a dissociated $n$-set, McKay's value $D(7) = 12$ \cite{mckaydata} already gives $M(14) \ge 8$, and the upper bound follows from $\Psi(Q_{14}) = 9$ in Lu and Ye \cite{luye2022}. The corollary is an independent re-derivation: its lower bound rests on the $8\times14$ enumeration rather than on McKay's computation.
+\end{remark}
 
 \section{Reproducibility and future directions}\label{sec:conclusion}
 

@@ -21,7 +21,7 @@ MaxSAT solver. This repo proves the fourth:
 |---|---|
 | **β(Q₁₄) = 9** | exhaustive: no 8×14 detecting matrix exists (and none for 7×14) |
 | **β(Q₁₅) = 9** | corollary below, with its own certificate |
-| **M(14) = 8** | Erdős–Rényi coin-weighing constant, with its own certificate |
+| M(14) = 8 | Erdős–Rényi coin-weighing constant, independently re-derived (lower bound also follows from McKay's D(7) = 12) |
 
 β(Q₁₅) ≥ 9 follows because deleting a column from an 8×15 detecting matrix would
 leave an 8×14 one, so no 8×15 exists either. The matching upper bound is
@@ -44,12 +44,14 @@ all-ones row to a weighing strategy. The gap is genuinely not constant — for
 n ≤ 10 it is 1 exactly at n = 4, 7, 9 and 0 elsewhere — so an exact β does
 **not** by itself determine M.
 
-This settles M(14) exactly. The upper half M(14) ≤ 8 was already reachable —
-Lu–Ye (2022) Table 2 records Ψ(Q₁₄) = 9 from the VNS and IPBS searches, and
-Ψ = M + 1 — but the matching lower bound was not available. β(Q₁₄) = 9 supplies
-it: M(14) ≥ 8. [`matrices/M14_le_8.txt`](matrices/M14_le_8.txt) re-derives the
-upper half here (14 vectors in {0,1}⁸ whose 2¹⁴ subset sums are pairwise
-distinct), so M(14) = 8 is checkable end to end in this repo.
+Both halves of M(14) = 8 follow from earlier work. M(n) ≤ k exactly when
+{0,1}^k contains a dissociated n-set, so McKay's D(7) = 12 gives M(14) ≥ 8,
+and Lu–Ye (2022) Table 2 records Ψ(Q₁₄) = 9 from the VNS and IPBS searches,
+with Ψ = M + 1, giving M(14) ≤ 8. This repo re-derives both halves
+independently: β(Q₁₄) = 9 gives M(14) ≥ 8 by a different route, and
+[`matrices/M14_le_8.txt`](matrices/M14_le_8.txt) (14 vectors in {0,1}⁸ whose
+2¹⁴ subset sums are pairwise distinct) gives M(14) ≤ 8. The whole value can
+therefore be checked end to end in this repo.
 
 Code, method and reproduction instructions: [`enumerate/`](enumerate/). The
 search also reproduces β(Q₁₁) = β(Q₁₂) = β(Q₁₃) = 8 in about a second each,

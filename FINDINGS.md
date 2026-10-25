@@ -16,7 +16,7 @@ such that no nonzero z ∈ {−1,0,1}ⁿ has Wz = 0. See the root README for why
 |---|---|---|
 | **β(Q₁₄) = 9** | proved | no 8×14 and no 7×14 detecting matrix exists (exhaustive) |
 | **β(Q₁₅) = 9** | proved | no 8×15 (column deletion from 8×14); 9×15 matrix in `matrices/` |
-| **M(14) = 8** | proved | Erdős–Rényi coin weighing; β(Q₁₄)=9 gives ≥ 8, certificate `matrices/M14_le_8.txt` gives ≤ 8 |
+| M(14) = 8 | reproved | Erdős–Rényi coin weighing; ≥ 8 already follows from McKay's D(7) = 12, and β(Q₁₄)=9 gives it again; certificate `matrices/M14_le_8.txt` gives ≤ 8 |
 | **D(7) = 12** | reproved | largest dissociated set in {0,1}⁷; `E(8) = 13` gives `D(7) ≤ 12` via `E(q) ≥ D(q−1)+1`, McKay's sets give ≥ 12 |
 | β(Q₂₄) ≤ 13, β(Q₂₆) ≤ 14, β(Q₂₉) ≤ 15 | certified | explicit matrices in `matrices/` |
 | β(Q₁₁) = β(Q₁₂) = β(Q₁₃) = 8 | reproduced | agrees with OEIS A303735 (Miller, MaxSAT, 2023) |
