@@ -1,0 +1,16 @@
+[package]
+name = "detect-fast"
+version = "0.1.0"
+edition = "2021"
+description = "Parallel exhaustive search for q x n detecting matrices with full-depth isomorph rejection"
+license = "MIT"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+rayon = "1"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"

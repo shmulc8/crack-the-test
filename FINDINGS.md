@@ -190,11 +190,11 @@ of the search. The lower bound inherits whatever confidence 8×14 carries.
 ## 5. Open
 
 - **a(16) of A303735.** The conjecture is 10, i.e. no 9×16 detecting matrix.
-  This needs q = 9, which the current code does not support: the 64-bit packing
-  uses 8 bits × 8 coordinates and would have to become 7 bits × 9. The search is
-  also substantially larger (256 column types instead of 128). Earlier
-  exploratory extrapolations varied by more than an order of magnitude, so no
-  compute estimate is claimed here without a reproducible q = 9 benchmark.
+  This needs q = 9. `enum.c` supports it with 7-bit fields × 9 coordinates in
+  the 64-bit packing, and the 9×15 positive control passes. The search is
+  substantially larger (256 column types instead of 128, and a symmetry group of
+  order 8!·2⁸ instead of 7!·2⁷). `frontier_run.py` estimates the cost from a
+  uniform sample of the depth-6 frontier.
 
   It would also settle a question in a different field. `E(9) ≤ 15` gives
   `D(8) ≤ 14` by the proposition in `enumerate/crossvalidate/`, and

@@ -1,6 +1,9 @@
 verify
 /enumerate/enum
 /enumerate/enum-rust
+/enumerate/enum2
+/enumerate/enum_fast
+/enumerate/fast/target/
 /enumerate/crossvalidate/thm_check
 /enumerate/crossvalidate/reconcile
 /enumerate/crossvalidate/checkdiff
