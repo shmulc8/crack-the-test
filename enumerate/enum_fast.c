@@ -324,6 +324,8 @@ static inline int in_ternary_span(int d, long long count, int64_t v) {
 typedef struct { uint64_t w[4]; } bits256;
 static bits256 adj[MAXN + 2][256];   /* adjacency rows indexed by position in L */
 static int clique_from = 1 << 30;
+static int triple_from = 1 << 30;  /* apply the triple bound from this depth */
+static int check_triple = 0;       /* compare has_clique3 with brute force at every node */
 static int exact_clique = 0;     /* apply the compatibility-graph bound from this depth */
 static long long clique_prunes[MAXN + 2];
 
@@ -445,6 +447,82 @@ static int has_clique(const bits256 *A, bits256 P, int k) {
     return 0;
 }
 
+/* Is there a k-clique in P, extending the nc chosen vertices, all of whose
+   triples {u, v, w} have u +- v +- w outside T(S)? Same branch and bound as
+   has_clique; each new vertex's neighbourhood is also filtered by the triples
+   it forms with the chosen vertices. */
+static int in_S(int depth, long long count, int64_t v) {
+    return anchor ? in_T(depth, v) : in_ternary_span(depth, count, v);
+}
+static int has_clique3(const bits256 *A, const int64_t *dl, bits256 P, int k,
+                       int *chosen, int nc, int depth, long long count) {
+    if (k <= 0) return 1;
+    if (popc256(&P) < k) return 0;
+    if (k == 1) return 1;
+    int order[256], colour[256], m = 0, c = 0;
+    bits256 U = P;
+    while (U.w[0] | U.w[1] | U.w[2] | U.w[3]) {
+        c++;
+        bits256 Q = U;
+        while (Q.w[0] | Q.w[1] | Q.w[2] | Q.w[3]) {
+            int wi = 0; while (!Q.w[wi]) wi++;
+            int v = (wi << 6) + __builtin_ctzll(Q.w[wi]);
+            U.w[v >> 6] &= ~(1ULL << (v & 63));
+            Q.w[v >> 6] &= ~(1ULL << (v & 63));
+            for (int j = 0; j < 4; j++) Q.w[j] &= ~A[v].w[j];
+            order[m] = v; colour[m] = c; m++;
+        }
+    }
+    for (int i = m - 1; i >= 0; i--) {
+        if (k > colour[i]) return 0;
+        int v = order[i];
+        bits256 NP;
+        for (int j = 0; j < 4; j++) NP.w[j] = P.w[j] & A[v].w[j];
+        if (nc > 0 && popc256(&NP) >= k - 1) {
+            bits256 it = NP;
+            while (it.w[0] | it.w[1] | it.w[2] | it.w[3]) {
+                int wi = 0; while (!it.w[wi]) wi++;
+                int w = (wi << 6) + __builtin_ctzll(it.w[wi]);
+                it.w[w >> 6] &= ~(1ULL << (w & 63));
+                for (int x = 0; x < nc; x++) {
+                    int64_t s1 = dl[chosen[x]] + dl[v], s2 = dl[chosen[x]] - dl[v], dw = dl[w];
+                    if (in_S(depth, count, s1 + dw) || in_S(depth, count, s1 - dw) ||
+                        in_S(depth, count, s2 + dw) || in_S(depth, count, s2 - dw)) {
+                        NP.w[w >> 6] &= ~(1ULL << (w & 63));
+                        break;
+                    }
+                }
+            }
+        }
+        chosen[nc] = v;
+        if (has_clique3(A, dl, NP, k - 1, chosen, nc + 1, depth, count)) return 1;
+        P.w[v >> 6] &= ~(1ULL << (v & 63));
+    }
+    return 0;
+}
+
+/* Brute force for --check-triple: extend pick[0..nc) by k vertices above
+   `from`, each adjacent to all chosen ones and passing every triple test. */
+static int triple_ok(const int64_t *dl, int u, int v, int w, int depth, long long count) {
+    int64_t s1 = dl[u] + dl[v], s2 = dl[u] - dl[v];
+    return !(in_S(depth, count, s1 + dl[w]) || in_S(depth, count, s1 - dl[w]) ||
+             in_S(depth, count, s2 + dl[w]) || in_S(depth, count, s2 - dl[w]));
+}
+static int brute_clique3(const bits256 *A, const int64_t *dl, int nlive, int from, int k,
+                         int *pick, int nc, int depth, long long count) {
+    if (k == 0) return 1;
+    for (int v = from; v < nlive; v++) {
+        int ok = 1;
+        for (int x = 0; x < nc && ok; x++) ok = A[pick[x]].w[v >> 6] >> (v & 63) & 1;
+        for (int x = 0; x < nc && ok; x++)
+            for (int y = x + 1; y < nc && ok; y++) ok = triple_ok(dl, pick[x], pick[y], v, depth, count);
+        if (!ok) continue;
+        pick[nc] = v;
+        if (brute_clique3(A, dl, nlive, v + 1, k - 1, pick, nc + 1, depth, count)) return 1;
+    }
+    return 0;
+}
+
 static int dfs(int depth, long long count, int ncand, int prefiltered) {
     nodes[depth]++;
     if (dump_depth >= 0 && depth == dump_depth) {
@@ -518,6 +596,16 @@ static int dfs(int depth, long long count, int ncand, int prefiltered) {
             bits256 all = {{0, 0, 0, 0}};
             for (int i = 0; i < nlive; i++) all.w[i >> 6] |= 1ULL << (i & 63);
             if (!has_clique(A, all, n - depth)) { clique_prunes[depth]++; return 0; }
+            if (depth >= triple_from && n - depth >= 3) {
+                int64_t dl[256]; int chosen[MAXN];
+                for (int i = 0; i < nlive; i++) dl[i] = delta[L[i]];
+                int found = has_clique3(A, dl, all, n - depth, chosen, 0, depth, count);
+                if (check_triple && found != brute_clique3(A, dl, nlive, 0, n - depth, chosen, 0, depth, count)) {
+                    fprintf(stderr, "triple bound disagrees with brute force at depth %d\n", depth);
+                    exit(3);
+                }
+                if (!found) { clique_prunes[depth]++; return 0; }
+            }
         } else if (colour_bound(A, nlive, n - depth) < n - depth) { clique_prunes[depth]++; return 0; }
     }
 
@@ -550,6 +638,7 @@ int main(int argc, char **argv) {
         const char *flag = argv[i];
         if (!strcmp(flag, "--pivots")) { use_pivots = 1; continue; }
         if (!strcmp(flag, "--exact-clique")) { exact_clique = 1; continue; }
+        if (!strcmp(flag, "--check-triple")) { check_triple = 1; continue; }
         if (!strcmp(flag, "--fast-canon")) { canon_mode = 1; continue; }
         if (!strcmp(flag, "--check-canon")) { canon_mode = 2; continue; }
         if (!strcmp(flag, "--no-pivots")) { use_pivots = 0; continue; }
@@ -564,6 +653,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(flag, "--prefix")) { if (!parse_prefix_arg(argv[++i])) return 1; }
         else if (!strcmp(flag, "--mitm")) { if (!parse_int_arg(flag, argv[++i], &anchor)) return 1; }
         else if (!strcmp(flag, "--clique")) { if (!parse_int_arg(flag, argv[++i], &clique_from)) return 1; }
+        else if (!strcmp(flag, "--triple")) { if (!parse_int_arg(flag, argv[++i], &triple_from)) return 1; }
         else { fprintf(stderr, "unknown option: %s\n", flag); return 1; }
     }
     if (q < 2 || q > MAXQ || n < 2 || n > MAXN) { fprintf(stderr, "require 2<=q<=9 and 2<=n<=20\n"); return 1; }

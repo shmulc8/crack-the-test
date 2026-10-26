@@ -19,6 +19,10 @@ echo "== naive oracle: exactly one representative per orbit (q = 4, 5, 6) =="
 python3 fast_oracle_check.py ./enum_fast --clique 1 --exact-clique --fast-canon --mitm 1 | tail -1
 python3 fast_oracle_check.py "$R" --clique 1 --mitm 1 --check-inherit | tail -1
 python3 fast_oracle_check.py "$R" --clique 3 --mitm 4 --pardepth 20 --check-inherit | tail -1
+echo "== naive oracle with the triple bound at every depth =="
+python3 fast_oracle_check.py ./enum_fast --clique 1 --exact-clique --fast-canon --mitm 1 --triple 1 | tail -1
+python3 fast_oracle_check.py "$R" --clique 1 --mitm 1 --triple 1 --check-inherit | tail -1
+python3 fast_oracle_check.py --pivots "$R" --clique 1 --mitm 3 --triple 1 --check-inherit | tail -1
 echo "== naive oracle under the full signed row group (--pivots) =="
 python3 fast_oracle_check.py --pivots ./enum_fast --clique 1 --exact-clique --fast-canon --mitm 1 | tail -1
 python3 fast_oracle_check.py --pivots "$R" --clique 1 --mitm 1 --check-inherit | tail -1
@@ -42,16 +46,25 @@ echo "6 9 (pivots): agree"
   --clique 6 --exact-clique --check-canon >/dev/null
 echo "9x16 subtree 0,3,5,56,90,188: agree"
 
+echo "== triple bound agrees with a brute-force clique search at every node =="
+for qn in "7 12" "8 14"; do
+  ./enum_fast $qn --maxsol 1000000 --report 99999 --mitm 5 --canondepth "${qn#* }" "${C_FLAGS[@]}" --triple 6 --check-triple >/dev/null
+  echo "$qn: agree"
+done
+./enum_fast 9 16 --maxsol 1 --report 99999 --prefix 0,3,28,45,94,102 --mitm 7 --canondepth 16 "${C_FLAGS[@]}" --triple 9 --check-triple >/dev/null
+echo "9x16 subtree 0,3,28,45,94,102: agree"
+
 vec() { sed -n 's/.*nodes\/depth: \[\([^]]*\)\].*/\1/p'; }
 
 echo "== C and Rust node vectors are identical =="
-for piv in "" --pivots; do
+for opts in "" "--pivots" "--pivots --triple 6"; do
   for qn in "6 9" "7 11" "7 12" "7 13" "7 14" "8 14"; do
-    c=$(./enum_fast $qn --maxsol 1 --report 99999 --mitm 5 --canondepth "${qn#* }" "${C_FLAGS[@]}" $piv | vec)
-    r=$($R $qn --mitm 5 --report 99999 --check-inherit $piv | vec)
-    [[ "$c" == "$r" ]] || { echo "$qn $piv: C [$c] != Rust [$r]" >&2; exit 1; }
-    echo "$qn $piv: [$r]"
+    c=$(./enum_fast $qn --maxsol 1 --report 99999 --mitm 5 --canondepth "${qn#* }" "${C_FLAGS[@]}" $opts | vec)
+    r=$($R $qn --mitm 5 --report 99999 --check-inherit $opts | vec)
+    [[ "$c" == "$r" ]] || { echo "$qn $opts: C [$c] != Rust [$r]" >&2; exit 1; }
+    echo "$qn $opts: [$r]"
   done
+  piv=${opts/--triple 6/--triple 9}
   for p in 0,3,28,45,94,102 0,3,5,56,90,188; do
     c=$(./enum_fast 9 16 --maxsol 1 --report 99999 --prefix "$p" --mitm 7 --canondepth 16 "${C_FLAGS[@]}" $piv | vec)
     r=$($R 9 16 --prefix "$p" --report 99999 --mitm 9 --check-inherit $piv | vec)

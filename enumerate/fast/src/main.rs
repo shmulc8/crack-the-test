@@ -15,6 +15,8 @@
 //! - meet-in-the-middle membership: T(S) = T(P) + T(R) for the first `anchor`
 //!   columns P, so v is in T(S) iff v - r is in a hash of T(P) for some r in
 //!   T(R), costing 3^|R| probes instead of 2^|S|;
+//! - a triple bound (`--triple`): the needed columns must also be compatible
+//!   in threes, u +- v +- w outside T(S), checked inside the clique search;
 //! - inherited edges: a child's graph is a subgraph of its parent's, and a
 //!   parent edge (a, b) survives adding c iff a +- b +- c lie outside T(S), so
 //!   only parent edges are tested, with four probes at the parent's depth.
@@ -50,6 +52,9 @@ struct Args {
     /// apply the compatibility-graph clique bound from this depth
     #[arg(long, default_value_t = 6)]
     clique: usize,
+    /// also require the needed columns' triples to be compatible, from this depth
+    #[arg(long)]
+    triple: Option<usize>,
     /// lex-min isomorph rejection up to this depth (default n)
     #[arg(long)]
     canondepth: Option<usize>,
@@ -80,6 +85,7 @@ struct Cfg {
     zero: u64,
     anchor: usize,
     clique_from: usize,
+    triple_from: usize,
     canon_depth: usize,
     pivots: bool,
     check_inherit: bool,
@@ -377,7 +383,15 @@ impl Engine {
             for i in 0..nlive {
                 all.set(i);
             }
-            let ok = has_clique(&a, all, need);
+            let mut ok = has_clique(&a, all, need);
+            if ok && need >= 3 && depth >= cfg.triple_from {
+                let mut dl = [0i64; 256];
+                for i in 0..nlive {
+                    dl[i] = cfg.delta[l[i] as usize];
+                }
+                let mut chosen = [0usize; MAXN];
+                ok = self.has_clique3(cfg, depth, &a, &dl, all, need, &mut chosen, 0);
+            }
             self.adj[depth] = a;
             if !ok {
                 self.prunes[depth] += 1;
@@ -438,6 +452,74 @@ impl Engine {
                 }
             }
         }
+    }
+
+    /// Is there a k-clique in p, extending the nc chosen vertices, all of whose
+    /// triples {u, v, w} have u +- v +- w outside T(S)? Same branch and bound
+    /// as `has_clique`; each new vertex's neighbourhood is also filtered by the
+    /// triples it forms with the chosen vertices.
+    #[allow(clippy::too_many_arguments)]
+    fn has_clique3(&self, cfg: &Cfg, depth: usize, a: &[B256], dl: &[i64; 256], mut p: B256, k: usize, chosen: &mut [usize; MAXN], nc: usize) -> bool {
+        if k == 0 {
+            return true;
+        }
+        if (p.count() as usize) < k {
+            return false;
+        }
+        if k == 1 {
+            return true;
+        }
+        let mut order = [0u16; 256];
+        let mut colour = [0u16; 256];
+        let mut m = 0;
+        let mut c = 0u16;
+        let mut u = p;
+        while !u.is_empty() {
+            c += 1;
+            let mut q = u;
+            while !q.is_empty() {
+                let v = q.first();
+                u.clear(v);
+                q.clear(v);
+                q = q.and_not(&a[v]);
+                order[m] = v as u16;
+                colour[m] = c;
+                m += 1;
+            }
+        }
+        for i in (0..m).rev() {
+            if (colour[i] as usize) < k {
+                return false;
+            }
+            let v = order[i] as usize;
+            let mut np = p.and(&a[v]);
+            if nc > 0 && (np.count() as usize) >= k - 1 {
+                let mut it = np;
+                while !it.is_empty() {
+                    let w = it.first();
+                    it.clear(w);
+                    for &x in &chosen[..nc] {
+                        let (dx, dv, dw) = (dl[x], dl[v], dl[w]);
+                        let s1 = dx + dv;
+                        let s2 = dx - dv;
+                        if self.in_t(cfg, depth, s1 + dw)
+                            || self.in_t(cfg, depth, s1 - dw)
+                            || self.in_t(cfg, depth, s2 + dw)
+                            || self.in_t(cfg, depth, s2 - dw)
+                        {
+                            np.clear(w);
+                            break;
+                        }
+                    }
+                }
+            }
+            chosen[nc] = v;
+            if self.has_clique3(cfg, depth, a, dl, np, k - 1, chosen, nc + 1) {
+                return true;
+            }
+            p.clear(v);
+        }
+        false
     }
 
     /// Restore the per-depth T structures for a task rooted at `prefix`.
@@ -692,6 +774,7 @@ fn build_cfg(args: &Args) -> Result<Cfg, String> {
         zero,
         anchor,
         clique_from: args.clique,
+        triple_from: args.triple.unwrap_or(usize::MAX),
         canon_depth,
         pivots: args.pivots,
         check_inherit: args.check_inherit,

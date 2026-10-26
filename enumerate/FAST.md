@@ -3,7 +3,7 @@
 `fast/` (Rust, rayon) and `enum_fast.c` (C) run the same search as `enum.c`:
 row 0 normalised to all +1, columns as 2^(q−1) types, strictly increasing type
 sequences, a column legal iff it is not a ternary combination of the chosen
-ones. Four changes make it fast. Each is a pruning or a data-structure change
+ones. Five changes make it fast. Each is a pruning or a data-structure change
 that keeps the search exhaustive. With `--pivots`, both engines also reject
 isomorphs under the full signed row group, as `enum.c --pivots` does
 (`ENUMERATION_PROOF.md`, "Optional row pivoting").
@@ -45,7 +45,16 @@ hashes T(P) once per depth-`anchor` node (at most 3^anchor entries) and keeps
 T(R) as a list. Then v ∈ T(S) iff v − r is in the hash for some r ∈ T(R): 3^|R|
 probes instead of 2^|S|.
 
-## 4. Inherited edges
+## 4. Triple bound (`--triple D`)
+
+From depth D, the clique search also requires every three of the needed
+columns u, v, w to satisfy u ± v ± w ∉ T(S). Each vertex added to the clique
+filters its neighbourhood by the triples it forms with the vertices already
+chosen. Most nodes at depths 11 and 12 of 9×16 have a pairwise clique but no
+child survives; this bound kills them before their children are built. On
+random 9×16 subtrees, D = 9 cuts the running time by 2.3–2.5×.
+
+## 5. Inherited edges
 
 A child's candidates are a row of its parent's graph, and its graph is a
 subgraph of the parent's: adding c to S only enlarges T. So the child tests
@@ -132,14 +141,24 @@ direct test builds, and nothing below depends on which one is used. The parent
 graph is only available when the parent ran in the same task, so a task's root
 node uses the direct test.
 
+**Lemma 7 (triple bound).** If S ∪ K is detecting, then for all distinct u, v,
+w ∈ K, u ± v ± w ∉ T(S).
+*Proof.* S ∪ {u, v, w} is detecting, so w ∉ T(S ∪ {u, v}) by Lemma 1, and
+T(S ∪ {u, v}) = T(S) + {0, ±u} + {0, ±v}. ∎
+`has_clique3` is `has_clique` with each recursion's candidate set further
+restricted to vertices whose triples with the chosen vertices pass this test.
+The same argument as Lemma 4 shows it returns true iff a k-clique exists whose
+triples all pass, so by Lemma 7 it never kills a node with a completion.
+
 **Theorem (completeness and soundness).** Let F be any detecting n-set
 containing 0, and F* = (f_0 < … < f_{n−1}) the lex-least set in its orbit.
 Then the search visits every prefix F*_k.
 
 Assume node F*_k is visited with candidate list ⊇ {f_k, …, f_{n−1}}. Then:
 - each f_j, j ≥ k, survives filtering (Lemmas 1 and 3), so the lookahead holds;
-- the f_j are pairwise compatible (Lemma 2), so they form a clique of the needed
-  size and the node survives (Lemma 4);
+- the f_j are pairwise compatible (Lemma 2) and their triples pass (Lemma 7),
+  so they form a clique of the needed size and the node survives (Lemmas 4
+  and 7);
 - f_k comes before f_{k+1}, …, f_{n−1} in the live list, so the "not enough
   left" break does not fire before it;
 - F*_{k+1} is lex-least, so `canon_fast` accepts it (Lemma 5);
@@ -173,11 +192,15 @@ work-stealing pool. Node counts do not depend on scheduling.
   loop over the whole group) and distinct. Their orbit sizes, times
   n / 2^(q−1), must sum exactly to the naive count. For example, 6×7: 433
   orbits cover all 241,486 naive solutions, or 100 orbits with pivots.
-- **Mutation test** (`fast_mutants.py`). Twelve deliberately broken copies of
-  `enum_fast.c` must each fail the oracle: one per lemma ingredient (clique
+- **Mutation test** (`fast_mutants.py`). Fifteen deliberately broken copies
+  of `enum_fast.c` must each fail the oracle: one per lemma ingredient (clique
   bound, colour bound, both halves of T, the a ± b test, child lists, tie
-  handling, low-bit table, lookahead, pivot table, pivot loop). All twelve
-  fail.
+  handling, low-bit table, lookahead, pivot table, pivot loop, and the triple
+  bound's size, colour bound and chosen set). All fifteen fail.
+- **Triple bound** (`enum_fast --check-triple`): an independent brute-force
+  search for a pairwise- and triple-compatible clique agrees with
+  `has_clique3` at every node of 7×12, 8×14 and a 9×16 subtree, and in the
+  mutation test.
 - **Inherited edges** (`--check-inherit`): the direct test agrees on every
   inherited pair in all oracle runs and node-vector comparisons.
 - **Canonicity agreement**: at every node of 6×9, 7×11 and 7×12 (6×9 with
@@ -187,7 +210,7 @@ work-stealing pool. Node counts do not depend on scheduling.
   plain subset-sum hashing (`--mitm 0`) gives the same node vectors as the
   Rust engine with meet-in-the-middle.
 - **Identical per-depth node vectors** from C and Rust on 6×9, 7×11–7×14, 8×14
-  and two 9×16 subtrees, with and without pivots. The C engine has no
+  and two 9×16 subtrees, with and without pivots, and with the triple bound. The C engine has no
   inherited edges, so this also compares them against the direct test.
 - **Known values** β(Q_n), n = 3…14: no (β−1)×n matrix, and a β×n matrix
   exists.

@@ -15,7 +15,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 FLAGS = ["--clique", "1", "--exact-clique", "--fast-canon"]
 
-# (name, original text, replacement, mitm anchor used for the oracle run[, extra oracle args])
+# (name, original text, replacement, mitm anchor used for the oracle run[, oracle args[, engine args]])
 MUTANTS = [
     ("clique bound asks for one column too many",
      "if (!has_clique(A, all, n - depth))", "if (!has_clique(A, all, n - depth + 1))", 1),
@@ -44,6 +44,13 @@ MUTANTS = [
     ("minimal image skips the last pivot",
      "for (int piv = 0; piv < max_pivots; piv++) {\n        int transformed[MAXN], X[MAXN];",
      "for (int piv = 0; piv < max_pivots - 1; piv++) {\n        int transformed[MAXN], X[MAXN];", 1, ["--pivots"]),
+    ("triple bound asks for one column too many",
+     "int found = has_clique3(A, dl, all, n - depth, chosen, 0, depth, count);",
+     "int found = has_clique3(A, dl, all, n - depth + 1, chosen, 0, depth, count);", 1, [], ["--triple", "1", "--check-triple"]),
+    ("triple colour bound off by one",
+     "if (k > colour[i]) return 0;", "if (k >= colour[i]) return 0;", 1, [], ["--triple", "1", "--check-triple"]),
+    ("triple filter forgets which vertices were chosen",
+     "chosen[nc] = v;", "chosen[nc] = 0;", 1, [], ["--triple", "1", "--check-triple"]),
 ]
 
 
@@ -57,6 +64,7 @@ def main() -> int:
     survivors = []
     for i, (name, old, new, anchor, *more) in enumerate(MUTANTS):
         oracle_args = more[0] if more else []
+        engine_args = more[1] if len(more) > 1 else []
         if source.count(old) != 1:
             raise AssertionError(f"mutant '{name}': pattern found {source.count(old)} times")
         src = work / f"mutant{i}.c"
@@ -64,7 +72,7 @@ def main() -> int:
         src.write_text(source.replace(old, new))
         subprocess.run(["cc", "-O2", "-o", str(binary), str(src)], check=True)
         result = subprocess.run(
-            [sys.executable, str(HERE / "fast_oracle_check.py"), *oracle_args, str(binary), *FLAGS, "--mitm", str(anchor)],
+            [sys.executable, str(HERE / "fast_oracle_check.py"), *oracle_args, str(binary), *FLAGS, *engine_args, "--mitm", str(anchor)],
             capture_output=True, text=True,
         )
         if result.returncode == 0:
