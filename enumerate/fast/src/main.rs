@@ -14,7 +14,10 @@
 //!   node whose live candidates contain no clique of that size is dead;
 //! - meet-in-the-middle membership: T(S) = T(P) + T(R) for the first `anchor`
 //!   columns P, so v is in T(S) iff v - r is in a hash of T(P) for some r in
-//!   T(R), costing 3^|R| probes instead of 2^|S|.
+//!   T(R), costing 3^|R| probes instead of 2^|S|;
+//! - inherited edges: a child's graph is a subgraph of its parent's, and a
+//!   parent edge (a, b) survives adding c iff a +- b +- c lie outside T(S), so
+//!   only parent edges are tested, with four probes at the parent's depth.
 //!
 //! The tree above `pardepth` is distributed with rayon work stealing. Node
 //! counts do not depend on scheduling, so they are comparable with `enum2.c`.
@@ -28,7 +31,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 const MAXN: usize = 20;
-const LOGT: u32 = 16;
+const LOGT: u32 = 18;
 const TSIZE: usize = 1 << LOGT;
 const BIAS: u64 = 64;
 const FLUSH_EVERY: u64 = 1 << 16;
@@ -53,6 +56,9 @@ struct Args {
     /// include the row-pivot symmetries in the isomorph rejection
     #[arg(long)]
     pivots: bool,
+    /// also test every inherited edge directly and abort on any disagreement
+    #[arg(long)]
+    check_inherit: bool,
     /// distribute subtrees rooted above this depth across threads
     #[arg(long, default_value_t = 7)]
     pardepth: usize,
@@ -76,6 +82,7 @@ struct Cfg {
     clique_from: usize,
     canon_depth: usize,
     pivots: bool,
+    check_inherit: bool,
     pivottab: Vec<[u8; 256]>,
     lowbits: Vec<[u8; 9]>,
     pardepth: usize,
@@ -193,6 +200,10 @@ struct Engine {
     nodes: [u64; MAXN + 1],
     prunes: [u64; MAXN + 1],
     unflushed: u64,
+    /// pidx[d][i]: index in live[d - 1] of cand[d][i], when cand[d] is a graph row
+    pidx: Vec<Vec<u8>>,
+    /// depth of the task root; the parent graph exists only below it
+    root: usize,
 }
 
 thread_local! {
@@ -215,6 +226,8 @@ impl Engine {
             cand: vec![Vec::with_capacity(256); n + 2],
             live: vec![Vec::with_capacity(256); n + 2],
             adj: vec![vec![B256::default(); 256]; n + 2],
+            pidx: vec![Vec::with_capacity(256); n + 2],
+            root: 0,
             nodes: [0; MAXN + 1],
             prunes: [0; MAXN + 1],
             unflushed: 0,
@@ -332,15 +345,32 @@ impl Engine {
             for row in a.iter_mut().take(nlive) {
                 *row = B256::default();
             }
+            // The candidates form a row of the parent graph: inherit its edges.
+            let inherit = prefiltered && depth > self.root && depth >= 2;
+            let c = if inherit { cfg.delta[self.sol[depth - 1] as usize] } else { 0 };
             for i in 0..nlive {
                 let di = cfg.delta[l[i] as usize];
                 for j in i + 1..nlive {
                     let dj = cfg.delta[l[j] as usize];
-                    if self.in_t(cfg, depth, dj - di) || self.in_t(cfg, depth, dj + di) {
-                        continue;
+                    let edge = if inherit {
+                        let (u, w) = (dj - di, dj + di);
+                        let e = self.adj[depth - 1][self.pidx[depth][i] as usize].get(self.pidx[depth][j] as usize)
+                            && !(self.in_t(cfg, depth - 1, u - c)
+                                || self.in_t(cfg, depth - 1, u + c)
+                                || self.in_t(cfg, depth - 1, w - c)
+                                || self.in_t(cfg, depth - 1, w + c));
+                        if cfg.check_inherit {
+                            let direct = !(self.in_t(cfg, depth, u) || self.in_t(cfg, depth, w));
+                            assert_eq!(e, direct, "inherited edge disagrees at depth {depth}");
+                        }
+                        e
+                    } else {
+                        !(self.in_t(cfg, depth, dj - di) || self.in_t(cfg, depth, dj + di))
+                    };
+                    if edge {
+                        a[i].set(j);
+                        a[j].set(i);
                     }
-                    a[i].set(j);
-                    a[j].set(i);
                 }
             }
             let mut all = B256::default();
@@ -377,9 +407,12 @@ impl Engine {
         let live = &self.live[depth];
         if use_graph {
             let row = &self.adj[depth][ci];
+            let pidx = &mut self.pidx[depth + 1];
+            pidx.clear();
             for cj in ci + 1..live.len() {
                 if row.get(cj) {
                     next.push(live[cj]);
+                    pidx.push(cj as u8);
                 }
             }
         } else {
@@ -410,6 +443,7 @@ impl Engine {
     /// Restore the per-depth T structures for a task rooted at `prefix`.
     fn load(&mut self, cfg: &Cfg, prefix: &[u8], cand: &[u8]) {
         let depth = prefix.len();
+        self.root = depth;
         self.sol[..depth].copy_from_slice(prefix);
         for d in 1..depth {
             self.t_build(cfg, d);
@@ -660,6 +694,7 @@ fn build_cfg(args: &Args) -> Result<Cfg, String> {
         clique_from: args.clique,
         canon_depth,
         pivots: args.pivots,
+        check_inherit: args.check_inherit,
         pivottab,
         lowbits,
         pardepth: args.pardepth,

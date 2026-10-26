@@ -3,8 +3,10 @@
 `fast/` (Rust, rayon) and `enum_fast.c` (C) run the same search as `enum.c`:
 row 0 normalised to all +1, columns as 2^(q−1) types, strictly increasing type
 sequences, a column legal iff it is not a ternary combination of the chosen
-ones. Three changes make it fast. Each is a pruning or a data-structure change
-that keeps the search exhaustive.
+ones. Four changes make it fast. Each is a pruning or a data-structure change
+that keeps the search exhaustive. With `--pivots`, both engines also reject
+isomorphs under the full signed row group, as `enum.c --pivots` does
+(`ENUMERATION_PROOF.md`, "Optional row pivoting").
 
 ## 1. Lex-min test at every depth, by minimal-image search
 
@@ -43,6 +45,16 @@ hashes T(P) once per depth-`anchor` node (at most 3^anchor entries) and keeps
 T(R) as a list. Then v ∈ T(S) iff v − r is in the hash for some r ∈ T(R): 3^|R|
 probes instead of 2^|S|.
 
+## 4. Inherited edges
+
+A child's candidates are a row of its parent's graph, and its graph is a
+subgraph of the parent's: adding c to S only enlarges T. So the child tests
+only pairs that were parent edges, and for those it needs only the new part of
+T(S ∪ {c}), namely a ± b ± c ∉ T(S). That is four probes at the parent's depth
+instead of two at the child's, each three times as expensive, and no probes at
+all for non-edges. `--check-inherit` also runs the direct test on every
+inherited pair and aborts on any disagreement.
+
 ## Correctness
 
 Notation: types are vectors in {±1}^q with first entry +1; for a set S of types,
@@ -73,8 +85,9 @@ at most depth columns plus v = a ± b, so every coordinate has absolute value at
 most depth + 2 ≤ n + 1 ≤ 21 < 64. Every field of every key therefore stays in
 [0, 2^f), no field carries into its neighbour, and equal keys mean equal
 vectors. For 9×16 with anchor 7, stored fields are within 64 ± 7 and queried
-ones within 64 ± 10. T(P) has at most 3^9 = 19,683 entries in a table of 65,536
-slots (both engines enforce this), so probing terminates. ∎
+ones within 64 ± 10. T(P) has at most 3^9 = 19,683 entries, in a table of
+65,536 slots in the C engine and 262,144 in the Rust one (both engines enforce
+this), so probing terminates. ∎
 
 **Lemma 4 (exact clique test).** `has_clique(A, P, k)` returns true iff the
 graph induced on P has a k-clique.
@@ -109,6 +122,15 @@ S[0..i−1], and these are the i smallest points of σ(X).
   the refined coset passed to the recursion. In that coset every other unused
   element maps strictly above p, so the invariant holds.
 - *Termination.* At i = |X| the image equals S. ∎
+
+**Lemma 6 (inherited edges).** Let a, b be legal for S and compatible with c,
+with c legal for S. Then a ± b ∉ T(S ∪ {c}) iff a ± b ∉ T(S) and
+a ± b ± c ∉ T(S).
+*Proof.* T(S ∪ {c}) = T(S) ∪ (T(S) + c) ∪ (T(S) − c), and T(S) is symmetric. ∎
+So the child's graph computed from the parent's edges is exactly the graph the
+direct test builds, and nothing below depends on which one is used. The parent
+graph is only available when the parent ran in the same task, so a task's root
+node uses the direct test.
 
 **Theorem (completeness and soundness).** Let F be any detecting n-set
 containing 0, and F* = (f_0 < … < f_{n−1}) the lex-least set in its orbit.
@@ -145,15 +167,19 @@ work-stealing pool. Node counts do not depend on scheduling.
 `./fast_controls.sh` runs:
 
 - **Naive oracle** (`fast_oracle_check.py`), on both engines, for every q×n
-  with q = 4, 5, 6. A plain DFS lists all detecting sets with no symmetry and
+  with q = 4, 5, 6, under translations and bit permutations and, with
+  `--pivots`, under the full signed row group. A plain DFS lists all detecting sets with no symmetry and
   no pruning. The engine's representatives must be detecting, lex-least (by a
   loop over the whole group) and distinct. Their orbit sizes, times
   n / 2^(q−1), must sum exactly to the naive count. For example, 6×7: 433
-  orbits cover all 241,486 naive solutions.
-- **Mutation test** (`fast_mutants.py`). Ten deliberately broken copies of
+  orbits cover all 241,486 naive solutions, or 100 orbits with pivots.
+- **Mutation test** (`fast_mutants.py`). Twelve deliberately broken copies of
   `enum_fast.c` must each fail the oracle: one per lemma ingredient (clique
   bound, colour bound, both halves of T, the a ± b test, child lists, tie
-  handling, low-bit table, lookahead). All ten fail.
+  handling, low-bit table, lookahead, pivot table, pivot loop). All twelve
+  fail.
+- **Inherited edges** (`--check-inherit`): the direct test agrees on every
+  inherited pair in all oracle runs and node-vector comparisons.
 - **Canonicity agreement**: at every node of 6×9, 7×11 and 7×12 (6×9 with
   pivots), on a full 9×16 subtree, and on random sets for q = 6…9 against a
   third, independent brute-force lex-min (`canon_random_check.c`).
@@ -161,7 +187,8 @@ work-stealing pool. Node counts do not depend on scheduling.
   plain subset-sum hashing (`--mitm 0`) gives the same node vectors as the
   Rust engine with meet-in-the-middle.
 - **Identical per-depth node vectors** from C and Rust on 6×9, 7×11–7×14, 8×14
-  and two 9×16 subtrees.
+  and two 9×16 subtrees, with and without pivots. The C engine has no
+  inherited edges, so this also compares them against the direct test.
 - **Known values** β(Q_n), n = 3…14: no (β−1)×n matrix, and a β×n matrix
   exists.
 - **The 9×15 positive control.**

@@ -15,7 +15,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 FLAGS = ["--clique", "1", "--exact-clique", "--fast-canon"]
 
-# (name, original text, replacement, mitm anchor used for the oracle run)
+# (name, original text, replacement, mitm anchor used for the oracle run[, extra oracle args])
 MUTANTS = [
     ("clique bound asks for one column too many",
      "if (!has_clique(A, all, n - depth))", "if (!has_clique(A, all, n - depth + 1))", 1),
@@ -39,6 +39,11 @@ MUTANTS = [
      "for (int i = 7; i >= 0 && got < j; i--) if (b >> i & 1) { out |= 1 << i; got++; }", 1),
     ("lookahead break off by one",
      "if (nlive - ci < n - depth) break;", "if (nlive - ci <= n - depth) break;", 1),
+    ("pivot table loses the column renormalisation",
+     "if (b_R ^ b_other) new_t |= (1 << out_bit);", "if (b_other) new_t |= (1 << out_bit);", 1, ["--pivots"]),
+    ("minimal image skips the last pivot",
+     "for (int piv = 0; piv < max_pivots; piv++) {\n        int transformed[MAXN], X[MAXN];",
+     "for (int piv = 0; piv < max_pivots - 1; piv++) {\n        int transformed[MAXN], X[MAXN];", 1, ["--pivots"]),
 ]
 
 
@@ -50,7 +55,8 @@ def main() -> int:
     work.mkdir(parents=True, exist_ok=True)
     source = (HERE / "enum_fast.c").read_text()
     survivors = []
-    for i, (name, old, new, anchor) in enumerate(MUTANTS):
+    for i, (name, old, new, anchor, *more) in enumerate(MUTANTS):
+        oracle_args = more[0] if more else []
         if source.count(old) != 1:
             raise AssertionError(f"mutant '{name}': pattern found {source.count(old)} times")
         src = work / f"mutant{i}.c"
@@ -58,7 +64,7 @@ def main() -> int:
         src.write_text(source.replace(old, new))
         subprocess.run(["cc", "-O2", "-o", str(binary), str(src)], check=True)
         result = subprocess.run(
-            [sys.executable, str(HERE / "fast_oracle_check.py"), str(binary), *FLAGS, "--mitm", str(anchor)],
+            [sys.executable, str(HERE / "fast_oracle_check.py"), *oracle_args, str(binary), *FLAGS, "--mitm", str(anchor)],
             capture_output=True, text=True,
         )
         if result.returncode == 0:

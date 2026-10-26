@@ -16,11 +16,15 @@ then requires:
    fraction n / 2^(q-1) of any orbit's sets contain type 0; |orbit| comes from
    the stabiliser, computed by brute force.
 
+With --pivots, G is the full signed row group: any permutation of the q rows
+with any signs, followed by renormalising each column to start with +1. It
+still contains every translation, so the fraction in 3 is unchanged.
+
 Together these say the representatives are exactly one per orbit of detecting
 sets. A missing orbit makes the sum too small; a non-canonical or duplicate
 representative fails 1 or 2.
 
-Usage: fast_oracle_check.py [--recompute] BINARY [extra flags passed to every run]
+Usage: fast_oracle_check.py [--recompute] [--pivots] BINARY [extra flags passed to every run]
 """
 
 from __future__ import annotations
@@ -80,11 +84,6 @@ def naive_count(q: int, n: int) -> int:
     return count
 
 
-def group(q: int) -> list[tuple[int, tuple[int, ...]]]:
-    k = q - 1
-    return [(m, p) for m in range(1 << k) for p in itertools.permutations(range(k))]
-
-
 def act(t: int, m: int, p: tuple[int, ...]) -> int:
     x = t ^ m
     out = 0
@@ -92,6 +91,27 @@ def act(t: int, m: int, p: tuple[int, ...]) -> int:
         if x >> j & 1:
             out |= 1 << image
     return out
+
+
+def group(q: int, pivots: bool) -> list[tuple[int, ...]]:
+    """G as a list of permutations of the 2^(q-1) types."""
+    nt = 1 << (q - 1)
+    if not pivots:
+        k = q - 1
+        return [tuple(act(t, m, p) for t in range(nt))
+                for m in range(1 << k) for p in itertools.permutations(range(k))]
+    cols = [column(t, q) for t in range(nt)]
+    tables = set()
+    for perm in itertools.permutations(range(q)):
+        for signs in itertools.product((1, -1), repeat=q):
+            table = []
+            for c in cols:
+                image = [signs[i] * c[perm[i]] for i in range(q)]
+                if image[0] < 0:
+                    image = [-x for x in image]
+                table.append(sum(1 << (j - 1) for j in range(1, q) if image[j] < 0))
+            tables.add(tuple(table))
+    return list(tables)
 
 
 def run(binary: Path, q: int, n: int, extra: list[str]) -> list[tuple[int, ...]]:
@@ -106,16 +126,16 @@ def run(binary: Path, q: int, n: int, extra: list[str]) -> list[tuple[int, ...]]
 
 def main() -> int:
     argv = sys.argv[1:]
-    recompute = bool(argv) and argv[0] == "--recompute"
-    if recompute:
-        argv = argv[1:]
+    recompute = "--recompute" in argv[:2]
+    pivots = "--pivots" in argv[:2]
+    argv = [a for a in argv[:2] if a not in ("--recompute", "--pivots")] + argv[2:]
     if not argv:
         print(__doc__)
         return 2
     binary = Path(argv[0]).resolve(strict=True)
-    extra = argv[1:]
+    extra = argv[1:] + (["--pivots"] if pivots else [])
     for q, n in CASES:
-        g = group(q)
+        g = group(q, pivots)
         nt = 1 << (q - 1)
         reps = run(binary, q, n, extra)
         if len(set(reps)) != len(reps):
@@ -126,8 +146,8 @@ def main() -> int:
                 raise AssertionError(f"{q}x{n}: {s} is not detecting")
             key = tuple(sorted(s))
             stab = 0
-            for m, p in g:
-                image = tuple(sorted(act(t, m, p) for t in s))
+            for table in g:
+                image = tuple(sorted(table[t] for t in s))
                 if image < key:
                     raise AssertionError(f"{q}x{n}: {s} is not lex-least (image {image})")
                 stab += image == key
