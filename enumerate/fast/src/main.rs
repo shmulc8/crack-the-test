@@ -248,6 +248,7 @@ impl Engine {
                 cur.add(zero.wrapping_add(c as u64));
                 cur.add(zero.wrapping_sub(c as u64));
             } else {
+                assert!(3 * prev[d - 1].list.len() <= TSIZE / 2, "T table too small at depth {d}");
                 for &x in &prev[d - 1].list {
                     cur.add(x);
                     cur.add(x.wrapping_add(c as u64));

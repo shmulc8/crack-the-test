@@ -67,11 +67,14 @@ graph.
 **Lemma 3 (meet in the middle).** For disjoint P, R, T(P ∪ R) = T(P) + T(R),
 so v ∈ T(P ∪ R) iff v − r ∈ T(P) for some r ∈ T(R).
 Keys are packed as zero + Σ_j u_j·2^(f·j), with f = 7 bits per field when q = 9
-and 8 otherwise, and bias 64. Every queried vector has |u_j| ≤ 2 + |R| ≤ 17, and
-every stored one has |u_j| ≤ anchor ≤ 9. So every field stays in [47, 81], each
-key is the unique base-2^f representation of its vector, and equal keys mean
-equal vectors. T(P) has at most 3^9 = 19,683 entries in a table of 65,536
-slots, so probing terminates. ∎
+and 8 otherwise, and bias 64. A probe for v − r matches a stored t ∈ T(P) iff
+every field of (v − r) − t is zero. That difference is a ternary combination of
+at most depth columns plus v = a ± b, so every coordinate has absolute value at
+most depth + 2 ≤ n + 1 ≤ 21 < 64. Every field of every key therefore stays in
+[0, 2^f), no field carries into its neighbour, and equal keys mean equal
+vectors. For 9×16 with anchor 7, stored fields are within 64 ± 7 and queried
+ones within 64 ± 10. T(P) has at most 3^9 = 19,683 entries in a table of 65,536
+slots (both engines enforce this), so probing terminates. ∎
 
 **Lemma 4 (exact clique test).** `has_clique(A, P, k)` returns true iff the
 graph induced on P has a k-clique.
@@ -87,7 +90,10 @@ k-clique remains. ∎
 S is rejected iff some pivot, translation m and bit permutation σ give
 sorted(σ(S' ⊕ m)) <lex S.
 *Proof.* S[0] = 0 is the least possible point, so a smaller image must contain
-0. That forces m ∈ S', and only those masks are tried. Fix X = S' ⊕ m ∋ 0.
+0. Bit permutations fix 0, so σ(t ⊕ m) = 0 iff t = m. That forces m ∈ S', and
+only those masks are tried. The entries of X are distinct and σ is a bijection,
+so distinct elements have distinct images. In particular, at i = 1 every other
+element maps above 0. Fix X = S' ⊕ m ∋ 0.
 `min_image_less(i, cells, U)` keeps this invariant: every σ in the coset
 Σ = {σ : σ(A_c) = B_c for all cells} maps the i used elements U onto
 S[0..i−1], and these are the i smallest points of σ(X).
@@ -118,8 +124,11 @@ Assume node F*_k is visited with candidate list ⊇ {f_k, …, f_{n−1}}. Then:
 - the child's list is f_k's row of the graph restricted to later types, which
   contains f_{k+1}, … (Lemma 2 converse).
 
-By induction F* is output. Conversely, every output is detecting by Lemmas 1
-and 3, since each added type passed an exact legality test. So "no solution"
+By induction F* is output. Conversely, every output is detecting. Each added
+type was either filtered by an exact legality test (Lemmas 1 and 3), or taken
+from a prefiltered list whose members are legal for the parent and compatible
+with the newly added type. By the converse of Lemma 2, that makes them legal for
+the child. So "no solution"
 means no detecting q×n matrix exists.
 
 The parallel engine changes only the order in which subtrees are visited. Each
@@ -133,17 +142,36 @@ work-stealing pool. Node counts do not depend on scheduling.
 
 ## Validation
 
-`./fast_controls.sh` checks:
+`./fast_controls.sh` runs:
 
-- the canonicity agreement above;
-- identical per-depth node vectors from C and Rust on 6×9, 7×11–7×14, 8×14
-  and two 9×16 frontier units;
-- the known values β(Q_n) for n = 3…14 (no (β−1)×n matrix, a β×n matrix
-  exists);
-- the 9×15 positive control.
+- **Naive oracle** (`fast_oracle_check.py`), on both engines, for every q×n
+  with q = 4, 5, 6. A plain DFS lists all detecting sets with no symmetry and
+  no pruning. The engine's representatives must be detecting, lex-least (by a
+  loop over the whole group) and distinct. Their orbit sizes, times
+  n / 2^(q−1), must sum exactly to the naive count. For example, 6×7: 433
+  orbits cover all 241,486 naive solutions.
+- **Mutation test** (`fast_mutants.py`). Ten deliberately broken copies of
+  `enum_fast.c` must each fail the oracle: one per lemma ingredient (clique
+  bound, colour bound, both halves of T, the a ± b test, child lists, tie
+  handling, low-bit table, lookahead). All ten fail.
+- **Canonicity agreement**: at every node of 6×9, 7×11 and 7×12 (6×9 with
+  pivots), on a full 9×16 subtree, and on random sets for q = 6…9 against a
+  third, independent brute-force lex-min (`canon_random_check.c`).
+- **Membership independence at q = 9**: on 9×16 subtrees, the C engine with
+  plain subset-sum hashing (`--mitm 0`) gives the same node vectors as the
+  Rust engine with meet-in-the-middle.
+- **Identical per-depth node vectors** from C and Rust on 6×9, 7×11–7×14, 8×14
+  and two 9×16 subtrees.
+- **Known values** β(Q_n), n = 3…14: no (β−1)×n matrix, and a β×n matrix
+  exists.
+- **The 9×15 positive control.**
 
-The full 8×13 solution list at canonical depth 8 matches `enum.c` line for line
-(108,865 solutions).
+Outside the script:
+- The full 8×13 solution list at canonical depth 8 matches `enum.c` line for
+  line: 108,865 solutions.
+- On 9×15 under the forced prefix 0,3,12,23,45,84,99, the Rust engine's
+  canonical solutions equal those of `enum.c` after brute-force lex-min
+  filtering (64 = 64).
 
 On 8×14 both engines report the node vector
 `0,1,6,18,143,1082,11364,115308,1112036,5215214,3155765,19114,649,0,0`
